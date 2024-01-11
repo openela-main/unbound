@@ -1,0 +1,85 @@
+From fbde301c2706a5d0c9c3942fe84693f2b7a6b16c Mon Sep 17 00:00:00 2001
+From: Petr Mensik <pemensik@redhat.com>
+Date: Sat, 7 May 2022 10:05:33 +0200
+Subject: [PATCH] Use reserved RCODE, fake source version
+
+Use RCODE value assigned for a private use. Previous value were possible
+returned value.
+
+Fake source version to be still 1.7.x. Hide real version into micro
+version component and export it also in a proper way with _REAL
+suffixes. Should workaround any source code detection to support correct
+callback format. Fixes compilation error in libreswan.
+
+Use preprocessed unbound.h to prevent failures
+
+Swig complains about wrong @ variable formats. Make it use preprocessed
+header instead of a template.
+---
+ libunbound/python/libunbound.i |  4 ++--
+ libunbound/unbound.h           | 13 ++++++++++---
+ services/mesh.h                |  2 +-
+ 3 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/libunbound/python/libunbound.i b/libunbound/python/libunbound.i
+index c9549bf90..f01e9111e 100644
+--- a/libunbound/python/libunbound.i
++++ b/libunbound/python/libunbound.i
+@@ -53,7 +53,7 @@
+    #ifdef HAVE_ARPA_INET_H
+    #include <arpa/inet.h>
+    #endif
+-   #include "libunbound/unbound.h"
++   #include "unbound.h"
+ %}
+ 
+ %pythoncode %{
+@@ -855,7 +855,7 @@ Result: ['74.125.43.147', '74.125.43.99', '74.125.43.103', '74.125.43.104']
+   //printf("resolve_stop()\n");
+ %} 
+ 
+-%include "libunbound/unbound.h"
++%include "unbound.h"
+ 
+ %inline %{
+   //SWIG will see the ub_ctx as a class
+diff --git a/libunbound/unbound.h b/libunbound/unbound.h
+index c822d3f89..82660bd51 100644
+--- a/libunbound/unbound.h
++++ b/libunbound/unbound.h
+@@ -102,9 +102,16 @@ extern "C" {
+ #endif
+ 
+ /** the version of this header file */
+-#define UNBOUND_VERSION_MAJOR @UNBOUND_VERSION_MAJOR@
+-#define UNBOUND_VERSION_MINOR @UNBOUND_VERSION_MINOR@
+-#define UNBOUND_VERSION_MICRO @UNBOUND_VERSION_MICRO@
++/* Because of RHEL compat change, callback type remains at
++ * 1.7.3 version. To prevent source-level incompatibility,
++ * fake still old version. Export real version in _REAL
++ * suffix definitions. */
++#define UNBOUND_VERSION_MAJOR 1
++#define UNBOUND_VERSION_MINOR 7
++#define UNBOUND_VERSION_MICRO @UNBOUND_VERSION_MAJOR@@UNBOUND_VERSION_MINOR@@UNBOUND_VERSION_MICRO@
++#define UNBOUND_VERSION_MAJOR_REAL @UNBOUND_VERSION_MAJOR@
++#define UNBOUND_VERSION_MINOR_REAL @UNBOUND_VERSION_MINOR@
++#define UNBOUND_VERSION_MICRO_REAL @UNBOUND_VERSION_MICRO@
+ 
+ /**
+  * The validation context is created to hold the resolver status,
+diff --git a/services/mesh.h b/services/mesh.h
+index 9c6f958ff..c0cbf355e 100644
+--- a/services/mesh.h
++++ b/services/mesh.h
+@@ -237,7 +237,7 @@ struct mesh_reply {
+ /* RHEL 8 compatibility layer.
+  * Special rcode to send was_ratelimited to callback without adding
+  * extra parameter. It is ORed to the rcode parameter of the callback. */
+-#define LDNS_RCODE_RATELIMITED 0x100
++#define LDNS_RCODE_RATELIMITED 0xf80
+ #define RCODE_IS_RATELIMITED(rcode) ((rcode & LDNS_RCODE_RATELIMITED) != 0)
+ #define RCODE_NOT_RATELIMITED(rcode) (rcode & ~LDNS_RCODE_RATELIMITED)
+ 
+-- 
+2.34.1
+

@@ -1,0 +1,471 @@
+From 605d66f0b6b8f7c308010f455058299d25c1d2ee Mon Sep 17 00:00:00 2001
+From: Petr Mensik <pemensik@redhat.com>
+Date: Fri, 6 May 2022 16:36:39 +0200
+Subject: [PATCH] Rework ABI breaking change to compatible way
+
+Upstream commit 749d1b9ebc6fcb79824afd0471a1cfc12ca861b1 introduced
+was_ratelimited variable to every async callback. Such change led to ABI
+break and increase of soname of libunbound.
+
+Use rcode to pass that boolean inside rcode variable. Allows keeping
+original callback prototype, but does not lose data. Extra integer bit
+operations should be very small price. Much better than ABI break.
+
+Make current version compatible back to .2 version.
+---
+ unbound-1.16.2/configure.ac               |  2 +-
+ unbound-1.16.2/daemon/worker.c            |  6 ++--
+ unbound-1.16.2/libunbound/libworker.c     | 34 +++++++++++++++--------
+ unbound-1.16.2/libunbound/unbound-event.h |  3 +-
+ unbound-1.16.2/libunbound/unbound.h       | 13 +++++----
+ unbound-1.16.2/libunbound/worker.h        |  6 ++--
+ unbound-1.16.2/services/authzone.c        | 11 ++++----
+ unbound-1.16.2/services/authzone.h        |  9 ++----
+ unbound-1.16.2/services/mesh.c            | 17 ++++++++----
+ unbound-1.16.2/services/mesh.h            |  9 +++++-
+ unbound-1.16.2/smallapp/worker_cb.c       |  6 ++--
+ unbound-1.16.2/validator/autotrust.c      |  2 +-
+ unbound-1.16.2/validator/autotrust.h      |  2 +-
+ 13 files changed, 72 insertions(+), 48 deletions(-)
+
+diff --git a/unbound-1.16.2/configure.ac b/unbound-1.16.2/configure.ac
+index 224501b..71f066c 100644
+--- a/unbound-1.16.2/configure.ac
++++ b/unbound-1.16.2/configure.ac
+@@ -19,7 +19,7 @@ AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
+ 
+ LIBUNBOUND_CURRENT=9
+ LIBUNBOUND_REVISION=18
+-LIBUNBOUND_AGE=1
++LIBUNBOUND_AGE=7
+ # 1.0.0 had 0:12:0
+ # 1.0.1 had 0:13:0
+ # 1.0.2 had 0:14:0
+diff --git a/unbound-1.16.2/daemon/worker.c b/unbound-1.16.2/daemon/worker.c
+index 010c4dc..2b87a41 100644
+--- a/unbound-1.16.2/daemon/worker.c
++++ b/unbound-1.16.2/daemon/worker.c
+@@ -2268,21 +2268,21 @@ void libworker_handle_control_cmd(struct tube* ATTR_UNUSED(tube),
+ 
+ void libworker_fg_done_cb(void* ATTR_UNUSED(arg), int ATTR_UNUSED(rcode),
+ 	sldns_buffer* ATTR_UNUSED(buf), enum sec_status ATTR_UNUSED(s),
+-	char* ATTR_UNUSED(why_bogus), int ATTR_UNUSED(was_ratelimited))
++	char* ATTR_UNUSED(why_bogus))
+ {
+ 	log_assert(0);
+ }
+ 
+ void libworker_bg_done_cb(void* ATTR_UNUSED(arg), int ATTR_UNUSED(rcode),
+ 	sldns_buffer* ATTR_UNUSED(buf), enum sec_status ATTR_UNUSED(s),
+-	char* ATTR_UNUSED(why_bogus), int ATTR_UNUSED(was_ratelimited))
++	char* ATTR_UNUSED(why_bogus))
+ {
+ 	log_assert(0);
+ }
+ 
+ void libworker_event_done_cb(void* ATTR_UNUSED(arg), int ATTR_UNUSED(rcode),
+ 	sldns_buffer* ATTR_UNUSED(buf), enum sec_status ATTR_UNUSED(s),
+-	char* ATTR_UNUSED(why_bogus), int ATTR_UNUSED(was_ratelimited))
++	char* ATTR_UNUSED(why_bogus))
+ {
+ 	log_assert(0);
+ }
+diff --git a/unbound-1.16.2/libunbound/libworker.c b/unbound-1.16.2/libunbound/libworker.c
+index 11bf5f9..6895119 100644
+--- a/unbound-1.16.2/libunbound/libworker.c
++++ b/unbound-1.16.2/libunbound/libworker.c
+@@ -549,9 +549,10 @@ libworker_enter_result(struct ub_result* res, sldns_buffer* buf,
+ /** fillup fg results */
+ static void
+ libworker_fillup_fg(struct ctx_query* q, int rcode, sldns_buffer* buf, 
+-	enum sec_status s, char* why_bogus, int was_ratelimited)
++	enum sec_status s, char* why_bogus)
+ {
+-	q->res->was_ratelimited = was_ratelimited;
++	q->res->was_ratelimited = RCODE_IS_RATELIMITED(rcode);
++	rcode = RCODE_NOT_RATELIMITED(rcode);
+ 	if(why_bogus)
+ 		q->res->why_bogus = strdup(why_bogus);
+ 	if(rcode != 0) {
+@@ -575,13 +576,13 @@ libworker_fillup_fg(struct ctx_query* q, int rcode, sldns_buffer* buf,
+ 
+ void
+ libworker_fg_done_cb(void* arg, int rcode, sldns_buffer* buf, enum sec_status s,
+-	char* why_bogus, int was_ratelimited)
++	char* why_bogus)
+ {
+ 	struct ctx_query* q = (struct ctx_query*)arg;
+ 	/* fg query is done; exit comm base */
+ 	comm_base_exit(q->w->base);
+ 
+-	libworker_fillup_fg(q, rcode, buf, s, why_bogus, was_ratelimited);
++	libworker_fillup_fg(q, rcode, buf, s, why_bogus);
+ }
+ 
+ /** setup qinfo and edns */
+@@ -634,7 +635,7 @@ int libworker_fg(struct ub_ctx* ctx, struct ctx_query* q)
+ 		NULL, 0, NULL, 0, NULL)) {
+ 		regional_free_all(w->env->scratch);
+ 		libworker_fillup_fg(q, LDNS_RCODE_NOERROR, 
+-			w->back->udp_buff, sec_status_insecure, NULL, 0);
++			w->back->udp_buff, sec_status_insecure, NULL);
+ 		libworker_delete(w);
+ 		free(qinfo.qname);
+ 		return UB_NOERROR;
+@@ -643,7 +644,7 @@ int libworker_fg(struct ub_ctx* ctx, struct ctx_query* q)
+ 		w->env, &qinfo, &edns, NULL, w->back->udp_buff, w->env->scratch)) {
+ 		regional_free_all(w->env->scratch);
+ 		libworker_fillup_fg(q, LDNS_RCODE_NOERROR, 
+-			w->back->udp_buff, sec_status_insecure, NULL, 0);
++			w->back->udp_buff, sec_status_insecure, NULL);
+ 		libworker_delete(w);
+ 		free(qinfo.qname);
+ 		return UB_NOERROR;
+@@ -665,7 +666,7 @@ int libworker_fg(struct ub_ctx* ctx, struct ctx_query* q)
+ 
+ void
+ libworker_event_done_cb(void* arg, int rcode, sldns_buffer* buf,
+-	enum sec_status s, char* why_bogus, int was_ratelimited)
++	enum sec_status s, char* why_bogus)
+ {
+ 	struct ctx_query* q = (struct ctx_query*)arg;
+ 	ub_event_callback_type cb = q->cb_event;
+@@ -688,7 +689,7 @@ libworker_event_done_cb(void* arg, int rcode, sldns_buffer* buf,
+ 		else if(s == sec_status_secure)
+ 			sec = 2;
+ 		(*cb)(cb_arg, rcode, (buf?(void*)sldns_buffer_begin(buf):NULL),
+-			(buf?(int)sldns_buffer_limit(buf):0), sec, why_bogus, was_ratelimited);
++			(buf?(int)sldns_buffer_limit(buf):0), sec, why_bogus);
+ 	}
+ }
+ 
+@@ -715,7 +716,7 @@ int libworker_attach_mesh(struct ub_ctx* ctx, struct ctx_query* q,
+ 		regional_free_all(w->env->scratch);
+ 		free(qinfo.qname);
+ 		libworker_event_done_cb(q, LDNS_RCODE_NOERROR,
+-			w->back->udp_buff, sec_status_insecure, NULL, 0);
++			w->back->udp_buff, sec_status_insecure, NULL);
+ 		return UB_NOERROR;
+ 	}
+ 	if(ctx->env->auth_zones && auth_zones_answer(ctx->env->auth_zones,
+@@ -723,7 +724,7 @@ int libworker_attach_mesh(struct ub_ctx* ctx, struct ctx_query* q,
+ 		regional_free_all(w->env->scratch);
+ 		free(qinfo.qname);
+ 		libworker_event_done_cb(q, LDNS_RCODE_NOERROR,
+-			w->back->udp_buff, sec_status_insecure, NULL, 0);
++			w->back->udp_buff, sec_status_insecure, NULL);
+ 		return UB_NOERROR;
+ 	}
+ 	/* process new query */
+@@ -788,12 +789,23 @@ add_bg_result(struct libworker* w, struct ctx_query* q, sldns_buffer* pkt,
+ 	}
+ }
+ 
++
++void
++libworker_bg_done_cb_compat(void* arg, int rcode, sldns_buffer* buf, enum sec_status s,
++	char* why_bogus)
++{
++	rcode = RCODE_NOT_RATELIMITED(rcode);
++	libworker_bg_done_cb(arg, rcode, buf, s, why_bogus);
++}
++
+ void
+ libworker_bg_done_cb(void* arg, int rcode, sldns_buffer* buf, enum sec_status s,
+-	char* why_bogus, int was_ratelimited)
++	char* why_bogus)
+ {
++	int was_ratelimited = RCODE_IS_RATELIMITED(rcode);
+ 	struct ctx_query* q = (struct ctx_query*)arg;
+ 
++	rcode = RCODE_NOT_RATELIMITED(rcode);
+ 	if(q->cancelled || q->w->back->want_to_quit) {
+ 		if(q->w->is_bg_thread) {
+ 			/* delete it now */
+diff --git a/unbound-1.16.2/libunbound/unbound-event.h b/unbound-1.16.2/libunbound/unbound-event.h
+index a5d5c03..70aa4c8 100644
+--- a/unbound-1.16.2/libunbound/unbound-event.h
++++ b/unbound-1.16.2/libunbound/unbound-event.h
+@@ -170,7 +170,8 @@ struct ub_event {
+ 	struct ub_event_vmt* vmt;
+ };
+ 
+-typedef void (*ub_event_callback_type)(void*, int, void*, int, int, char*, int);
++/* Uses define LDNS_RCODE_RATELIMITED from services/mesh.h */
++typedef void (*ub_event_callback_type)(void*, int, void*, int, int, char*);
+ 
+ /**
+  * Create a resolving and validation context.
+diff --git a/unbound-1.16.2/libunbound/unbound.h b/unbound-1.16.2/libunbound/unbound.h
+index c779d18..f6d5c7c 100644
+--- a/unbound-1.16.2/libunbound/unbound.h
++++ b/unbound-1.16.2/libunbound/unbound.h
+@@ -203,18 +203,19 @@ struct ub_result {
+ 	 */
+ 	char* why_bogus;
+ 
++	/**
++	 * TTL for the result, in seconds.  If the security is bogus, then
++	 * you also cannot trust this value.
++	 */
++	int ttl;
++
+ 	/**
+ 	 * If the query or one of its subqueries was ratelimited.  Useful if
+ 	 * ratelimiting is enabled and answer to the client is SERVFAIL as a
+ 	 * result.
++	 * RHEL8 Change, moved after ttl.
+ 	 */
+ 	int was_ratelimited;
+-
+-	/**
+-	 * TTL for the result, in seconds.  If the security is bogus, then
+-	 * you also cannot trust this value.
+-	 */
+-	int ttl;
+ };
+ 
+ /**
+diff --git a/unbound-1.16.2/libunbound/worker.h b/unbound-1.16.2/libunbound/worker.h
+index 0fa5bfa..8b64b4d 100644
+--- a/unbound-1.16.2/libunbound/worker.h
++++ b/unbound-1.16.2/libunbound/worker.h
+@@ -90,15 +90,15 @@ void libworker_handle_control_cmd(struct tube* tube, uint8_t* msg, size_t len,
+ 
+ /** mesh callback with fg results */
+ void libworker_fg_done_cb(void* arg, int rcode, sldns_buffer* buf, 
+-	enum sec_status s, char* why_bogus, int was_ratelimited);
++	enum sec_status s, char* why_bogus);
+ 
+ /** mesh callback with bg results */
+ void libworker_bg_done_cb(void* arg, int rcode, sldns_buffer* buf, 
+-	enum sec_status s, char* why_bogus, int was_ratelimited);
++	enum sec_status s, char* why_bogus);
+ 
+ /** mesh callback with event results */
+ void libworker_event_done_cb(void* arg, int rcode, struct sldns_buffer* buf, 
+-	enum sec_status s, char* why_bogus, int was_ratelimited);
++	enum sec_status s, char* why_bogus);
+ 
+ /**
+  * Worker signal handler function. User argument is the worker itself.
+diff --git a/unbound-1.16.2/services/authzone.c b/unbound-1.16.2/services/authzone.c
+index b9e0b11..c72949f 100644
+--- a/unbound-1.16.2/services/authzone.c
++++ b/unbound-1.16.2/services/authzone.c
+@@ -5656,8 +5656,7 @@ xfr_master_add_addrs(struct auth_master* m, struct ub_packed_rrset_key* rrset,
+ 
+ /** callback for task_transfer lookup of host name, of A or AAAA */
+ void auth_xfer_transfer_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
+-	enum sec_status ATTR_UNUSED(sec), char* ATTR_UNUSED(why_bogus),
+-	int ATTR_UNUSED(was_ratelimited))
++	enum sec_status ATTR_UNUSED(sec), char* ATTR_UNUSED(why_bogus))
+ {
+ 	struct auth_xfer* xfr = (struct auth_xfer*)arg;
+ 	struct module_env* env;
+@@ -5669,6 +5668,7 @@ void auth_xfer_transfer_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
+ 		return; /* stop on quit */
+ 	}
+ 
++	rcode = RCODE_NOT_RATELIMITED(rcode);
+ 	/* process result */
+ 	if(rcode == LDNS_RCODE_NOERROR) {
+ 		uint16_t wanted_qtype = LDNS_RR_TYPE_A;
+@@ -6717,8 +6717,7 @@ xfr_probe_send_or_end(struct auth_xfer* xfr, struct module_env* env)
+ 
+ /** callback for task_probe lookup of host name, of A or AAAA */
+ void auth_xfer_probe_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
+-	enum sec_status ATTR_UNUSED(sec), char* ATTR_UNUSED(why_bogus),
+-	int ATTR_UNUSED(was_ratelimited))
++	enum sec_status ATTR_UNUSED(sec), char* ATTR_UNUSED(why_bogus))
+ {
+ 	struct auth_xfer* xfr = (struct auth_xfer*)arg;
+ 	struct module_env* env;
+@@ -6730,6 +6729,7 @@ void auth_xfer_probe_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
+ 		return; /* stop on quit */
+ 	}
+ 
++	rcode = RCODE_NOT_RATELIMITED(rcode);
+ 	/* process result */
+ 	if(rcode == LDNS_RCODE_NOERROR) {
+ 		uint16_t wanted_qtype = LDNS_RR_TYPE_A;
+@@ -8212,7 +8212,7 @@ auth_zone_verify_zonemd_key_with_ds(struct auth_zone* z,
+ 
+ /** callback for ZONEMD lookup of DNSKEY */
+ void auth_zonemd_dnskey_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
+-	enum sec_status sec, char* why_bogus, int ATTR_UNUSED(was_ratelimited))
++	enum sec_status sec, char* why_bogus)
+ {
+ 	struct auth_zone* z = (struct auth_zone*)arg;
+ 	struct module_env* env;
+@@ -8234,6 +8234,7 @@ void auth_zonemd_dnskey_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
+ 	if(z->zonemd_callback_qtype == LDNS_RR_TYPE_DS)
+ 		typestr = "DS";
+ 	downprot = env->cfg->harden_algo_downgrade;
++	rcode = RCODE_NOT_RATELIMITED(rcode);
+ 
+ 	/* process result */
+ 	if(sec == sec_status_bogus) {
+diff --git a/unbound-1.16.2/services/authzone.h b/unbound-1.16.2/services/authzone.h
+index 07614ed..b339fc1 100644
+--- a/unbound-1.16.2/services/authzone.h
++++ b/unbound-1.16.2/services/authzone.h
+@@ -690,12 +690,10 @@ void auth_xfer_probe_timer_callback(void* arg);
+ void auth_xfer_transfer_timer_callback(void* arg);
+ /** mesh callback for task_probe on lookup of host names */
+ void auth_xfer_probe_lookup_callback(void* arg, int rcode,
+-	struct sldns_buffer* buf, enum sec_status sec, char* why_bogus,
+-	int was_ratelimited);
++	struct sldns_buffer* buf, enum sec_status sec, char* why_bogus);
+ /** mesh callback for task_transfer on lookup of host names */
+ void auth_xfer_transfer_lookup_callback(void* arg, int rcode,
+-	struct sldns_buffer* buf, enum sec_status sec, char* why_bogus,
+-	int was_ratelimited);
++	struct sldns_buffer* buf, enum sec_status sec, char* why_bogus);
+ 
+ /*
+  * Compares two 32-bit serial numbers as defined in RFC1982.  Returns
+@@ -774,8 +772,7 @@ void auth_zone_verify_zonemd(struct auth_zone* z, struct module_env* env,
+ 
+ /** mesh callback for zonemd on lookup of dnskey */
+ void auth_zonemd_dnskey_lookup_callback(void* arg, int rcode,
+-	struct sldns_buffer* buf, enum sec_status sec, char* why_bogus,
+-	int was_ratelimited);
++	struct sldns_buffer* buf, enum sec_status sec, char* why_bogus);
+ 
+ /**
+  * Check the ZONEMD records that need online DNSSEC chain lookups,
+diff --git a/unbound-1.16.2/services/mesh.c b/unbound-1.16.2/services/mesh.c
+index 30bcf7c..fc3c690 100644
+--- a/unbound-1.16.2/services/mesh.c
++++ b/unbound-1.16.2/services/mesh.c
+@@ -63,6 +63,7 @@
+ #include "util/data/dname.h"
+ #include "respip/respip.h"
+ #include "services/listen_dnsport.h"
++#include "libunbound/unbound-event.h"
+ 
+ #ifdef CLIENT_SUBNET
+ #include "edns-subnet/subnetmod.h"
+@@ -1012,7 +1013,7 @@ mesh_state_cleanup(struct mesh_state* mstate)
+ 			mstate->cb_list = cb->next;
+ 			fptr_ok(fptr_whitelist_mesh_cb(cb->cb));
+ 			(*cb->cb)(cb->cb_arg, LDNS_RCODE_SERVFAIL, NULL,
+-				sec_status_unchecked, NULL, 0);
++				sec_status_unchecked, NULL);
+ 			log_assert(mesh->num_reply_addrs > 0);
+ 			mesh->num_reply_addrs--;
+ 		}
+@@ -1268,8 +1269,9 @@ mesh_do_callback(struct mesh_state* m, int rcode, struct reply_info* rep,
+ 					r->edns.opt_list_inplace_cb_out = NULL;
+ 		}
+ 		fptr_ok(fptr_whitelist_mesh_cb(r->cb));
+-		(*r->cb)(r->cb_arg, rcode, r->buf, sec_status_unchecked, NULL,
+-			was_ratelimited);
++		if (was_ratelimited)
++			rcode |= LDNS_RCODE_RATELIMITED;
++		(*r->cb)(r->cb_arg, rcode, r->buf, sec_status_unchecked, NULL);
+ 	} else {
+ 		size_t udp_size = r->edns.udp_size;
+ 		sldns_buffer_clear(r->buf);
+@@ -1287,11 +1289,14 @@ mesh_do_callback(struct mesh_state* m, int rcode, struct reply_info* rep,
+ 		{
+ 			fptr_ok(fptr_whitelist_mesh_cb(r->cb));
+ 			(*r->cb)(r->cb_arg, LDNS_RCODE_SERVFAIL, r->buf,
+-				sec_status_unchecked, NULL, 0);
++				sec_status_unchecked, NULL);
+ 		} else {
+ 			fptr_ok(fptr_whitelist_mesh_cb(r->cb));
+-			(*r->cb)(r->cb_arg, LDNS_RCODE_NOERROR, r->buf,
+-				rep->security, reason, was_ratelimited);
++			rcode = LDNS_RCODE_NOERROR;
++			if (was_ratelimited)
++				rcode |= LDNS_RCODE_RATELIMITED;
++			(*r->cb)(r->cb_arg, rcode, r->buf,
++				rep->security, reason);
+ 		}
+ 	}
+ 	free(reason);
+diff --git a/unbound-1.16.2/services/mesh.h b/unbound-1.16.2/services/mesh.h
+index 3be9b63..5050d6c 100644
+--- a/unbound-1.16.2/services/mesh.h
++++ b/unbound-1.16.2/services/mesh.h
+@@ -234,13 +234,20 @@ struct mesh_reply {
+ 	struct http2_stream* h2_stream;
+ };
+ 
++/* RHEL 8 compatibility layer.
++ * Special rcode to send was_ratelimited to callback without adding
++ * extra parameter. It is ORed to the rcode parameter of the callback. */
++#define LDNS_RCODE_RATELIMITED 0x100
++#define RCODE_IS_RATELIMITED(rcode) ((rcode & LDNS_RCODE_RATELIMITED) != 0)
++#define RCODE_NOT_RATELIMITED(rcode) (rcode & ~LDNS_RCODE_RATELIMITED)
++
+ /** 
+  * Mesh result callback func.
+  * called as func(cb_arg, rcode, buffer_with_reply, security, why_bogus,
+  *		was_ratelimited);
+  */
+ typedef void (*mesh_cb_func_type)(void* cb_arg, int rcode, struct sldns_buffer*,
+-	enum sec_status, char* why_bogus, int was_ratelimited);
++	enum sec_status, char* why_bogus);
+ 
+ /**
+  * Callback to result routine
+diff --git a/unbound-1.16.2/smallapp/worker_cb.c b/unbound-1.16.2/smallapp/worker_cb.c
+index c689817..c7b1653 100644
+--- a/unbound-1.16.2/smallapp/worker_cb.c
++++ b/unbound-1.16.2/smallapp/worker_cb.c
+@@ -159,21 +159,21 @@ void libworker_handle_control_cmd(struct tube* ATTR_UNUSED(tube),
+ 
+ void libworker_fg_done_cb(void* ATTR_UNUSED(arg), int ATTR_UNUSED(rcode), 
+ 	struct sldns_buffer* ATTR_UNUSED(buf), enum sec_status ATTR_UNUSED(s),
+-	char* ATTR_UNUSED(why_bogus), int ATTR_UNUSED(was_ratelimited))
++	char* ATTR_UNUSED(why_bogus))
+ {
+ 	log_assert(0);
+ }
+ 
+ void libworker_bg_done_cb(void* ATTR_UNUSED(arg), int ATTR_UNUSED(rcode), 
+ 	struct sldns_buffer* ATTR_UNUSED(buf), enum sec_status ATTR_UNUSED(s),
+-	char* ATTR_UNUSED(why_bogus), int ATTR_UNUSED(was_ratelimited))
++	char* ATTR_UNUSED(why_bogus))
+ {
+ 	log_assert(0);
+ }
+ 
+ void libworker_event_done_cb(void* ATTR_UNUSED(arg), int ATTR_UNUSED(rcode), 
+ 	struct sldns_buffer* ATTR_UNUSED(buf), enum sec_status ATTR_UNUSED(s),
+-	char* ATTR_UNUSED(why_bogus), int ATTR_UNUSED(was_ratelimited))
++	char* ATTR_UNUSED(why_bogus))
+ {
+ 	log_assert(0);
+ }
+diff --git a/unbound-1.16.2/validator/autotrust.c b/unbound-1.16.2/validator/autotrust.c
+index 3cdf9ce..40b3e35 100644
+--- a/unbound-1.16.2/validator/autotrust.c
++++ b/unbound-1.16.2/validator/autotrust.c
+@@ -2331,7 +2331,7 @@ autr_debug_print(struct val_anchors* anchors)
+ 
+ void probe_answer_cb(void* arg, int ATTR_UNUSED(rcode), 
+ 	sldns_buffer* ATTR_UNUSED(buf), enum sec_status ATTR_UNUSED(sec),
+-	char* ATTR_UNUSED(why_bogus), int ATTR_UNUSED(was_ratelimited))
++	char* ATTR_UNUSED(why_bogus))
+ {
+ 	/* retry was set before the query was done,
+ 	 * re-querytime is set when query succeeded, but that may not
+diff --git a/unbound-1.16.2/validator/autotrust.h b/unbound-1.16.2/validator/autotrust.h
+index 057f2b6..c549798 100644
+--- a/unbound-1.16.2/validator/autotrust.h
++++ b/unbound-1.16.2/validator/autotrust.h
+@@ -206,6 +206,6 @@ void autr_debug_print(struct val_anchors* anchors);
+ 
+ /** callback for query answer to 5011 probe */
+ void probe_answer_cb(void* arg, int rcode, struct sldns_buffer* buf, 
+-	enum sec_status sec, char* errinf, int was_ratelimited);
++	enum sec_status sec, char* errinf);
+ 
+ #endif /* VALIDATOR_AUTOTRUST_H */
+-- 
+2.37.1
+
