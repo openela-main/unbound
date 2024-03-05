@@ -34,7 +34,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 5%{?extra_version:.%{extra_version}}%{?dist}
+Release: 5%{?extra_version:.%{extra_version}}%{?dist}.2
 License: BSD
 Url: https://www.unbound.net/
 Source: https://www.unbound.net/downloads/%{name}-%{version}%{?extra_version}.tar.gz
@@ -62,6 +62,8 @@ Patch1:   unbound-1.15-soversion2-compat.patch
 Patch2:   unbound-1.15-source-compat.patch
 # https://github.com/NLnetLabs/unbound/commit/137719522a8ea5b380fbb6206d2466f402f5b554
 Patch3:   unbound-1.16-CVE-2022-3204.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2023-50387_CVE-2023-50868.diff
+Patch4: unbound-1.16-CVE-2023-50387-CVE-2023-50868.patch
 
 BuildRequires: gdb
 BuildRequires: gcc, make
@@ -164,6 +166,7 @@ pushd %{pkgname}
 %patch1 -p2 -b .solib2-compat
 %patch2 -p1 -b .srccompat
 %patch3 -p2 -b .CVE-2022-3204
+%patch4 -p2 -b .CVE-2023-50387-CVE-2023-50868
 
 
 # copy common doc files - after here, since it may be patched
@@ -430,6 +433,16 @@ popd
 %verify(not md5 size mtime) %{_sharedstatedir}/%{name}/root.key
 
 %changelog
+* Mon Feb 19 2024 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-5.2
+- Fix wrong entry in changelog
+- Resolves: RHEL-25634
+
+* Fri Feb 16 2024 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-5.1
+- Fix KeyTrap - Extreme CPU consumption in DNSSEC validator CVE-2023-50387
+- Fix Preparing an NSEC3 closest encloser proof can exhaust CPU resources CVE-2023-50868
+- Resolves: RHEL-25660
+- Resolves: RHEL-25634
+
 * Sat Oct 15 2022 Petr Menšík <pemensik@redhat.com> - 1.16.2-5
 - Stop creating wrong devel manual pages (#2135322)
 
