@@ -30,7 +30,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 3%{?extra_version:.%{extra_version}}%{?dist}
+Release: 3%{?extra_version:.%{extra_version}}%{?dist}.1
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
@@ -55,6 +55,8 @@ Source19: http://keys.gnupg.net/pks/lookup?op=get&search=0x9F6F1C2D7E045F8D#/wou
 
 # https://github.com/NLnetLabs/unbound/commit/137719522a8ea5b380fbb6206d2466f402f5b554
 Patch1: unbound-1.16-CVE-2022-3204.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2023-50387_CVE-2023-50868.diff
+Patch2: unbound-1.16-CVE-2023-50387-CVE-2023-50868.patch
 
 BuildRequires: gcc, make
 BuildRequires: flex, openssl-devel
@@ -449,6 +451,12 @@ popd
 %attr(0644,root,root) %config %{_sysconfdir}/%{name}/root.key
 
 %changelog
+* Wed Feb 14 2024 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-3.1
+- Fix KeyTrap - Extreme CPU consumption in DNSSEC validator CVE-2023-50387
+- Fix Preparing an NSEC3 closest encloser proof can exhaust CPU resources CVE-2023-50868
+- Resolves: RHEL-25642
+- Resolves: RHEL-25670
+
 * Tue Oct 11 2022 Petr Menšík <pemensik@redhat.com> - 1.16.2-3
 - Fix NRDelegation attack leading to uncontrolled resource consumption
   (CVE-2022-3204)
