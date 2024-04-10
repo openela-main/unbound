@@ -30,7 +30,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 3%{?extra_version:.%{extra_version}}%{?dist}.1
+Release: 3%{?extra_version:.%{extra_version}}%{?dist}.5
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
@@ -52,6 +52,7 @@ Source16: unbound-munin.README
 Source17: unbound-anchor.service
 Source18: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz.asc
 Source19: http://keys.gnupg.net/pks/lookup?op=get&search=0x9F6F1C2D7E045F8D#/wouter.nlnetlabs.nl.key
+Source21: remote-control.conf
 
 # https://github.com/NLnetLabs/unbound/commit/137719522a8ea5b380fbb6206d2466f402f5b554
 Patch1: unbound-1.16-CVE-2022-3204.patch
@@ -317,6 +318,7 @@ mkdir -p %{buildroot}%{_sysconfdir}/unbound/{keys.d,conf.d,local.d}
 install -p %{SOURCE9} %{buildroot}%{_sysconfdir}/unbound/keys.d/
 install -p %{SOURCE10} %{buildroot}%{_sysconfdir}/unbound/conf.d/
 install -p %{SOURCE11} %{buildroot}%{_sysconfdir}/unbound/local.d/
+install -p -m 0644 %{SOURCE21} %{buildroot}%{_sysconfdir}/unbound/conf.d/
 
 # Link unbound-control-setup.8 manpage to unbound-control.8
 echo ".so man8/unbound-control.8" > %{buildroot}/%{_mandir}/man8/unbound-control-setup.8
@@ -451,6 +453,18 @@ popd
 %attr(0644,root,root) %config %{_sysconfdir}/%{name}/root.key
 
 %changelog
+* Wed Apr 03 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-3.5
+- Rebuilt again with z-stream target
+
+* Wed Apr 03 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-3.4
+- Correct typo in new config file
+
+* Mon Mar 11 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-3.3
+- Ensure group access correction reaches also updated configs (CVE-2024-1488)
+
+* Wed Feb 28 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-3.2
+- Ensure only unbound group can change configuration (CVE-2024-1488)
+
 * Wed Feb 14 2024 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-3.1
 - Fix KeyTrap - Extreme CPU consumption in DNSSEC validator CVE-2023-50387
 - Fix Preparing an NSEC3 closest encloser proof can exhaust CPU resources CVE-2023-50868
