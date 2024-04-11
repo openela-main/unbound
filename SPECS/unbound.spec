@@ -34,7 +34,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 5%{?extra_version:.%{extra_version}}%{?dist}.2
+Release: 5%{?extra_version:.%{extra_version}}%{?dist}.6
 License: BSD
 Url: https://www.unbound.net/
 Source: https://www.unbound.net/downloads/%{name}-%{version}%{?extra_version}.tar.gz
@@ -55,6 +55,7 @@ Source15: unbound-anchor.timer
 Source16: unbound-munin.README
 Source17: unbound-anchor.service
 Source18: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz.asc
+Source21: remote-control.conf
 
 # Reverts ABI change done in version 1.8.0 (bz#2027735)
 # Makes possible backward binary compatibility with a new features
@@ -286,6 +287,7 @@ mkdir -p %{buildroot}%{_sysconfdir}/unbound/{keys.d,conf.d,local.d}
 install -p %{SOURCE9} %{buildroot}%{_sysconfdir}/unbound/keys.d/
 install -p %{SOURCE10} %{buildroot}%{_sysconfdir}/unbound/conf.d/
 install -p %{SOURCE11} %{buildroot}%{_sysconfdir}/unbound/local.d/
+install -p -m 0644 %{SOURCE21} %{buildroot}%{_sysconfdir}/unbound/conf.d/
 
 # Link unbound-control-setup.8 manpage to unbound-control.8
 echo ".so man8/unbound-control.8" > %{buildroot}/%{_mandir}/man8/unbound-control-setup.8
@@ -433,6 +435,18 @@ popd
 %verify(not md5 size mtime) %{_sharedstatedir}/%{name}/root.key
 
 %changelog
+* Wed Apr 03 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.6
+- Rebuilt again with z-stream target
+
+* Wed Apr 03 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.5
+- Correct typo in new config file
+
+* Mon Mar 11 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.4
+- Ensure group access correction reaches also updated configs (CVE-2024-1488)
+
+* Wed Feb 28 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.3
+- Ensure only unbound group can change configuration (CVE-2024-1488)
+
 * Mon Feb 19 2024 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-5.2
 - Fix wrong entry in changelog
 - Resolves: RHEL-25634
