@@ -30,7 +30,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 3%{?extra_version:.%{extra_version}}%{?dist}.5
+Release: 8%{?extra_version:.%{extra_version}}%{?dist}.1
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
@@ -57,7 +57,9 @@ Source21: remote-control.conf
 # https://github.com/NLnetLabs/unbound/commit/137719522a8ea5b380fbb6206d2466f402f5b554
 Patch1: unbound-1.16-CVE-2022-3204.patch
 # https://nlnetlabs.nl/downloads/unbound/patch_CVE-2023-50387_CVE-2023-50868.diff
-Patch2: unbound-1.16-CVE-2023-50387-CVE-2023-50868.patch
+Patch4: unbound-1.16-CVE-2023-50387-CVE-2023-50868.patch
+# https://github.com/NLnetLabs/unbound/commit/b7c61d7cc256d6a174e6179622c7fa968272c259
+Patch3: unbound-1.21-CVE-2024-8508.patch
 
 BuildRequires: gcc, make
 BuildRequires: flex, openssl-devel
@@ -453,23 +455,20 @@ popd
 %attr(0644,root,root) %config %{_sysconfdir}/%{name}/root.key
 
 %changelog
-* Wed Apr 03 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-3.5
-- Rebuilt again with z-stream target
+* Tue Nov 12 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-8.1
+- Prevent unbounded name compression (CVE-2024-8508)
 
-* Wed Apr 03 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-3.4
-- Correct typo in new config file
-
-* Mon Mar 11 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-3.3
+* Mon Mar 11 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-8
 - Ensure group access correction reaches also updated configs (CVE-2024-1488)
 
-* Wed Feb 28 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-3.2
+* Wed Feb 28 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-7
 - Ensure only unbound group can change configuration (CVE-2024-1488)
 
-* Wed Feb 14 2024 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-3.1
+* Fri Feb 16 2024 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-6
 - Fix KeyTrap - Extreme CPU consumption in DNSSEC validator CVE-2023-50387
 - Fix Preparing an NSEC3 closest encloser proof can exhaust CPU resources CVE-2023-50868
-- Resolves: RHEL-25642
-- Resolves: RHEL-25670
+- Resolves: RHEL-25671
+- Resolves: RHEL-25643
 
 * Tue Oct 11 2022 Petr Menšík <pemensik@redhat.com> - 1.16.2-3
 - Fix NRDelegation attack leading to uncontrolled resource consumption
