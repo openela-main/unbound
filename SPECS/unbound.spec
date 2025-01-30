@@ -34,7 +34,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 5%{?extra_version:.%{extra_version}}%{?dist}.6
+Release: 5.8%{?extra_version:.%{extra_version}}%{?dist}
 License: BSD
 Url: https://www.unbound.net/
 Source: https://www.unbound.net/downloads/%{name}-%{version}%{?extra_version}.tar.gz
@@ -65,6 +65,8 @@ Patch2:   unbound-1.15-source-compat.patch
 Patch3:   unbound-1.16-CVE-2022-3204.patch
 # https://nlnetlabs.nl/downloads/unbound/patch_CVE-2023-50387_CVE-2023-50868.diff
 Patch4: unbound-1.16-CVE-2023-50387-CVE-2023-50868.patch
+# https://github.com/NLnetLabs/unbound/commit/b7c61d7cc256d6a174e6179622c7fa968272c259
+Patch5: unbound-1.21-CVE-2024-8508.patch
 
 BuildRequires: gdb
 BuildRequires: gcc, make
@@ -168,6 +170,7 @@ pushd %{pkgname}
 %patch2 -p1 -b .srccompat
 %patch3 -p2 -b .CVE-2022-3204
 %patch4 -p2 -b .CVE-2023-50387-CVE-2023-50868
+%patch5 -p2 -b .CVE-2024-8508
 
 
 # copy common doc files - after here, since it may be patched
@@ -435,27 +438,23 @@ popd
 %verify(not md5 size mtime) %{_sharedstatedir}/%{name}/root.key
 
 %changelog
-* Wed Apr 03 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.6
-- Rebuilt again with z-stream target
+* Tue Nov 12 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.8
+- Prevent unbounded name compression (CVE-2024-8508)
 
-* Wed Apr 03 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.5
-- Correct typo in new config file
+* Tue May 28 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.7
+- Rebuild to propagate to CentOS Stream (RHEL-25500)
 
-* Mon Mar 11 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.4
+* Mon Mar 11 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.6
 - Ensure group access correction reaches also updated configs (CVE-2024-1488)
 
 * Wed Feb 28 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.3
 - Ensure only unbound group can change configuration (CVE-2024-1488)
 
-* Mon Feb 19 2024 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-5.2
-- Fix wrong entry in changelog
-- Resolves: RHEL-25634
-
 * Fri Feb 16 2024 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-5.1
 - Fix KeyTrap - Extreme CPU consumption in DNSSEC validator CVE-2023-50387
 - Fix Preparing an NSEC3 closest encloser proof can exhaust CPU resources CVE-2023-50868
-- Resolves: RHEL-25660
-- Resolves: RHEL-25634
+- Resolves: RHEL-25428
+- Resolves: RHEL-25423
 
 * Sat Oct 15 2022 Petr Menšík <pemensik@redhat.com> - 1.16.2-5
 - Stop creating wrong devel manual pages (#2135322)
