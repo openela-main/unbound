@@ -2,7 +2,7 @@
 %{?!with_python3:     %global with_python3     1}
 %{?!with_munin:       %global with_munin       1}
 %bcond_without dnstap
-%bcond_with    systemd
+%bcond_without systemd
 %bcond_without doh
 
 %global _hardened_build 1
@@ -30,7 +30,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 8%{?extra_version:.%{extra_version}}%{?dist}.1
+Release: 17%{?extra_version:.%{extra_version}}%{?dist}
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
@@ -53,13 +53,18 @@ Source17: unbound-anchor.service
 Source18: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz.asc
 Source19: http://keys.gnupg.net/pks/lookup?op=get&search=0x9F6F1C2D7E045F8D#/wouter.nlnetlabs.nl.key
 Source21: remote-control.conf
+Source22: unbound-local-root.conf
+Source23: module-setup.sh
+Source24: unbound-initrd.conf
+Source25: unbound.sysusers
+Source26: unbound-as112-networks.conf
 
 # https://github.com/NLnetLabs/unbound/commit/137719522a8ea5b380fbb6206d2466f402f5b554
 Patch1: unbound-1.16-CVE-2022-3204.patch
 # https://nlnetlabs.nl/downloads/unbound/patch_CVE-2023-50387_CVE-2023-50868.diff
 Patch4: unbound-1.16-CVE-2023-50387-CVE-2023-50868.patch
-# https://github.com/NLnetLabs/unbound/commit/b7c61d7cc256d6a174e6179622c7fa968272c259
-Patch3: unbound-1.21-CVE-2024-8508.patch
+# https://github.com/NLnetLabs/unbound/commit/6d1e61173
+Patch5: unbound-1.16-control-t-flag.patch
 
 BuildRequires: gcc, make
 BuildRequires: flex, openssl-devel
@@ -129,7 +134,7 @@ The devel package contains the unbound library and the include files
 
 %package libs
 Summary: Libraries used by the unbound server and client applications
-Requires(pre): shadow-utils
+%{?sysusers_requires_compat}
 %if ! 0%{with_python2}
 # Make explicit conflict with no longer provided python package
 Obsoletes: python2-unbound < 1.9.3
@@ -163,6 +168,14 @@ Conflicts: python2-unbound < 1.9.3
 Python 3 modules and extensions for unbound
 %endif
 
+%package dracut
+Summary: Unbound dracut module
+Requires: dracut%{?_isa}
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description dracut
+Unbound dracut module allowing use of Unbound for name resolution
+in initramfs.
 
 %prep
 %if 0%{?fedora}
@@ -274,6 +287,7 @@ install -p -m 0644 %{SOURCE17} %{buildroot}%{_unitdir}/unbound-anchor.service
 install -p -m 0755 %{SOURCE2} %{buildroot}%{_sysconfdir}/unbound
 install -p -m 0644 %{SOURCE12} %{buildroot}%{_sysconfdir}/unbound
 install -p -m 0644 %{SOURCE14} %{buildroot}%{_sysconfdir}/sysconfig/unbound
+install -p -D -m 0644 %{SOURCE25} %{buildroot}%{_sysusersdir}/%{name}.conf
 %if %{with_munin}
 # Install munin plugin and its softlinks
 install -d -m 0755 %{buildroot}%{_sysconfdir}/munin/plugin-conf.d
@@ -300,6 +314,9 @@ install -m 0644 %{SOURCE8} %{buildroot}%{_tmpfilesdir}/unbound.conf
 install -m 0644 %{SOURCE5} %{buildroot}%{_sysconfdir}/unbound/
 install -m 0644 %{SOURCE13} %{buildroot}%{_sharedstatedir}/unbound/root.key
 
+# local root zone fetch to separated configuration file
+install -p -m 0644 %{SOURCE22} %{buildroot}%{_sysconfdir}/unbound/
+
 # remove static library from install (fedora packaging guidelines)
 rm %{buildroot}%{_libdir}/*.la
 
@@ -321,16 +338,22 @@ install -p %{SOURCE9} %{buildroot}%{_sysconfdir}/unbound/keys.d/
 install -p %{SOURCE10} %{buildroot}%{_sysconfdir}/unbound/conf.d/
 install -p %{SOURCE11} %{buildroot}%{_sysconfdir}/unbound/local.d/
 install -p -m 0644 %{SOURCE21} %{buildroot}%{_sysconfdir}/unbound/conf.d/
+ln -s ../unbound-local-root.conf %{buildroot}%{_sysconfdir}/unbound/conf.d/unbound-local-root.conf
+
+mkdir -p %{buildroot}%{_datadir}/%{name}/conf.d
+install -p -m 0644 %{SOURCE26} %{buildroot}%{_datadir}/%{name}/conf.d/
 
 # Link unbound-control-setup.8 manpage to unbound-control.8
 echo ".so man8/unbound-control.8" > %{buildroot}/%{_mandir}/man8/unbound-control-setup.8
 
+# install dracut module
+mkdir -p %{buildroot}%{_prefix}/lib/dracut/modules.d/99unbound
+
+install -p -m 0755 %{SOURCE23} %{buildroot}%{_prefix}/lib/dracut/modules.d/99unbound
+install -p -m 0644 %{SOURCE24} %{buildroot}%{_prefix}/lib/dracut/modules.d/99unbound
 
 %pre libs
-getent group unbound >/dev/null || groupadd -r unbound
-getent passwd unbound >/dev/null || \
-useradd -r -g unbound -d %{_sysconfdir}/unbound -s /sbin/nologin \
--c "Unbound DNS resolver" unbound
+%sysusers_create_compat %{SOURCE25}
 
 %post
 %systemd_post unbound.service
@@ -382,14 +405,17 @@ popd
 %doc doc/CREDITS doc/FEATURES
 %{_unitdir}/%{name}.service
 %{_unitdir}/%{name}-keygen.service
-%attr(0755,unbound,unbound) %dir %{_rundir}/%{name}
+%attr(0775,unbound,root) %dir %{_rundir}/%{name}
 %attr(0644,root,root) %{_tmpfilesdir}/unbound.conf
 %attr(0644,root,root) %config(noreplace) %{_sysconfdir}/%{name}/unbound.conf
+%attr(0644,root,root) %config(noreplace) %{_sysconfdir}/%{name}/unbound-local-root.conf
 %attr(0644,root,root) %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
 %dir %attr(0755,root,unbound) %{_sysconfdir}/%{name}/keys.d
 %attr(0644,root,unbound) %config(noreplace) %{_sysconfdir}/%{name}/keys.d/*.key
 %dir %attr(0755,root,unbound) %{_sysconfdir}/%{name}/conf.d
-%attr(0644,root,unbound) %config(noreplace) %{_sysconfdir}/%{name}/conf.d/*.conf
+%attr(0644,root,unbound) %config(noreplace) %{_sysconfdir}/%{name}/conf.d/example.com.conf
+%attr(0644,root,unbound) %config(noreplace) %{_sysconfdir}/%{name}/conf.d/remote-control.conf
+%verify(not mtime) %config(missingok, noreplace) %{_sysconfdir}/%{name}/conf.d/unbound-local-root.conf
 %dir %attr(0755,root,unbound) %{_sysconfdir}/%{name}/local.d
 %attr(0644,root,unbound) %config(noreplace) %{_sysconfdir}/%{name}/local.d/*.conf
 %ghost %attr(0640,root,unbound) %{_sysconfdir}/%{name}/unbound_control.pem
@@ -406,6 +432,7 @@ popd
 %{_mandir}/man5/*
 %exclude %{_mandir}/man8/unbound-anchor*
 %{_mandir}/man8/*
+%{_datadir}/%{name}/
 
 %if 0%{with_python2}
 %files -n python2-unbound
@@ -441,6 +468,7 @@ popd
 %doc doc/README
 %license doc/LICENSE
 %attr(0755,root,root) %dir %{_sysconfdir}/%{name}
+%{_sysusersdir}/%{name}.conf
 %{_sbindir}/unbound-anchor
 %{_libdir}/libunbound.so.*
 %{_mandir}/man8/unbound-anchor*
@@ -454,9 +482,45 @@ popd
 # just left for backwards compat with user changed unbound.conf files - format is different!
 %attr(0644,root,root) %config %{_sysconfdir}/%{name}/root.key
 
+%files dracut
+%{_prefix}/lib/dracut/modules.d/99unbound
+
 %changelog
-* Tue Nov 12 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-8.1
-- Prevent unbounded name compression (CVE-2024-8508)
+* Mon Feb 10 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-17
+- Add as112 networks config file
+- Resolves: RHEL-78696
+
+* Mon Feb 10 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-16
+- Add possibility to disable unbound-anchor by file presence
+- Resolves: RHEL-78694
+
+* Sun Feb 09 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-15
+- Add sysusers support needed to propagate user to initramfs
+- Resolves: RHEL-77789
+
+* Sun Feb 09 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-14
+- Change service type to notify
+- Resolves: RHEL-77790
+
+* Wed Feb 05 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-13
+- Add noreplace to root zone config link
+- Resolves: RHEL-77788
+
+* Tue Feb 04 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-12
+- Backport +t flag to forward_add and stub_add control commands
+- Resolves: RHEL-77791
+
+* Tue Feb 04 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-11
+- Enabled libsystemd and change unbound service type to notify-reload
+- Resolves: RHEL-77790
+
+* Tue Feb 04 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-10
+- Add dracut module
+- Resolves: RHEL-77789
+
+* Tue Feb 04 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-9
+- Move automatic root zone fetching to drop-in
+- Resolves: RHEL-77788
 
 * Mon Mar 11 2024 Petr Menšík <pemensik@redhat.com> - 1.16.2-8
 - Ensure group access correction reaches also updated configs (CVE-2024-1488)

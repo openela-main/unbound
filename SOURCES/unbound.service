@@ -8,10 +8,10 @@ Before=nss-lookup.target
 Wants=nss-lookup.target
 
 [Service]
-Type=simple
+Type=notify
 EnvironmentFile=-/etc/sysconfig/unbound
 ExecStartPre=/usr/sbin/unbound-checkconf
-ExecStartPre=/bin/bash -c 'if [ ! "$DISABLE_UNBOUND_ANCHOR" == "yes" ]; then /usr/sbin/unbound-anchor -a /var/lib/unbound/root.key -c /etc/unbound/icannbundle.pem -f /etc/resolv.conf -R; else echo "Updates of root keys with unbound-anchor is disabled"; fi'
+ExecStartPre=/bin/bash -c 'if [ ! "$DISABLE_UNBOUND_ANCHOR" == "yes" ] && [ ! -f /run/unbound/anchor-disable ]; then /usr/sbin/unbound-anchor -a /var/lib/unbound/root.key -c /etc/unbound/icannbundle.pem -f /etc/resolv.conf -R; else echo "Updates of root keys with unbound-anchor is disabled"; fi'
 ExecStart=/usr/sbin/unbound -d $UNBOUND_OPTIONS
 ExecReload=/usr/sbin/unbound-control reload
 
