@@ -30,7 +30,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 17%{?extra_version:.%{extra_version}}%{?dist}
+Release: 18%{?extra_version:.%{extra_version}}%{?dist}
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
@@ -65,6 +65,8 @@ Patch1: unbound-1.16-CVE-2022-3204.patch
 Patch4: unbound-1.16-CVE-2023-50387-CVE-2023-50868.patch
 # https://github.com/NLnetLabs/unbound/commit/6d1e61173
 Patch5: unbound-1.16-control-t-flag.patch
+# https://github.com/NLnetLabs/unbound/commit/b7c61d7cc256d6a174e6179622c7fa968272c259
+Patch6: unbound-1.21-CVE-2024-8508.patch
 
 BuildRequires: gcc, make
 BuildRequires: flex, openssl-devel
@@ -486,6 +488,9 @@ popd
 %{_prefix}/lib/dracut/modules.d/99unbound
 
 %changelog
+* Wed May 14 2025 Petr Menšík <pemensik@redhat.com> - 1.16.2-18
+- Prevent unbounded name compression (CVE-2024-8508)
+
 * Mon Feb 10 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-17
 - Add as112 networks config file
 - Resolves: RHEL-78696
