@@ -30,7 +30,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 18%{?extra_version:.%{extra_version}}%{?dist}
+Release: 19%{?extra_version:.%{extra_version}}%{?dist}
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
@@ -383,6 +383,16 @@ fi
 %postun libs
 %systemd_postun_with_restart unbound-anchor.timer
 
+# this trigger ensures that if user changed their config
+# prior the move of root auth-zone to separate file in 1.16.2-18, we do not
+# force the change of root auth-zone on them
+%triggerpostun -- unbound < 1.16.2-18
+if [ -f %{_sysconfdir}/%{name}/unbound.conf.rpmnew ] \
+    && [ -L %{_sysconfdir}/%{name}/conf.d/unbound-local-root.conf ] \
+    && [ "$(readlink -f %{_sysconfdir}/%{name}/conf.d/unbound-local-root.conf)" == "%{_sysconfdir}/%{name}/unbound-local-root.conf" ]; then
+  rm -f %{_sysconfdir}/%{name}/conf.d/unbound-local-root.conf
+fi
+
 %check
 pushd %{dir_primary}
 #pushd pythonmod
@@ -488,6 +498,10 @@ popd
 %{_prefix}/lib/dracut/modules.d/99unbound
 
 %changelog
+* Tue Jun 24 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-19
+- Fix regression on update introduced by local-root symlink
+- Resolves: RHEL-92255
+
 * Wed May 14 2025 Petr Menšík <pemensik@redhat.com> - 1.16.2-18
 - Prevent unbounded name compression (CVE-2024-8508)
 
