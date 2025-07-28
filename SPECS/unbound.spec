@@ -30,7 +30,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 19%{?extra_version:.%{extra_version}}%{?dist}
+Release: 19%{?extra_version:.%{extra_version}}%{?dist}.1
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
@@ -67,6 +67,15 @@ Patch4: unbound-1.16-CVE-2023-50387-CVE-2023-50868.patch
 Patch5: unbound-1.16-control-t-flag.patch
 # https://github.com/NLnetLabs/unbound/commit/b7c61d7cc256d6a174e6179622c7fa968272c259
 Patch6: unbound-1.21-CVE-2024-8508.patch
+# The patch for CVE-2025-5994 requires certain changes fixing bugs in subnet module
+# that is why we have to backport these commits. They have their respective tests
+# backported with them.
+# https://github.com/NLnetLabs/unbound/commit/0f08cc6d5577ad4747749c55229e16df8711ee32
+# https://github.com/NLnetLabs/unbound/commit/6d0812b56731af130e8bc7e1572388934beb9b3b
+# https://github.com/NLnetLabs/unbound/commit/be626f7c5330dc414a582a04b537ea79d5c452fb
+# https://github.com/NLnetLabs/unbound/commit/5bf82f246481098a6473f296b21fc1229d276c0f
+# https://github.com/NLnetLabs/unbound/commit/a1150078f29e14b36c8e4d9d05a263a5e6abbc5b
+Patch7: unbound-1.23.1-CVE-2025-5994.patch
 
 BuildRequires: gcc, make
 BuildRequires: flex, openssl-devel
@@ -498,6 +507,10 @@ popd
 %{_prefix}/lib/dracut/modules.d/99unbound
 
 %changelog
+* Thu Jul 24 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-19.1
+- Fix RebirthDay Attack (CVE-2025-5994)
+- Resolves: RHEL-104128
+
 * Tue Jun 24 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-19
 - Fix regression on update introduced by local-root symlink
 - Resolves: RHEL-92255
