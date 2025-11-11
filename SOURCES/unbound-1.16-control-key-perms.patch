@@ -1,0 +1,14 @@
+diff --git a/unbound-1.16.2/smallapp/unbound-control-setup.sh.in b/unbound-1.16.2/smallapp/unbound-control-setup.sh.in
+index 4a358f6bd..c2a79a242 100644
+--- a/unbound-1.16.2/smallapp/unbound-control-setup.sh.in
++++ b/unbound-1.16.2/smallapp/unbound-control-setup.sh.in
+@@ -204,7 +204,8 @@ fi
+ # remove unused permissions
+ chmod o-rw \
+       "$SVR_BASE.pem" \
+-      "$SVR_BASE.key" \
++      "$SVR_BASE.key"
++chmod g+r,o-rw \
+       "$CTL_BASE.pem" \
+       "$CTL_BASE.key"
+ 
