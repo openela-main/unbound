@@ -1,0 +1,31 @@
+From bf85823eb03d749ef2beb7b22464d1d0bb9f5952 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Petr=20Men=C5=A1=C3=ADk?= <pemensik@redhat.com>
+Date: Tue, 14 Jan 2025 13:55:10 +0100
+Subject: [PATCH] Add unbound members group access to control key
+
+Recent openssl genrsa does not use umask for generated keys. There is no
+strong reason why every member of unbound group should be able read
+server key. But control key would be quite useful to be group readable
+and to allow control access to whole group. Allowing access to control
+by group membership, not via sudo.
+---
+ unbound-1.20.0/smallapp/unbound-control-setup.sh.in | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/unbound-1.20.0/smallapp/unbound-control-setup.sh.in b/unbound-1.20.0/smallapp/unbound-control-setup.sh.in
+index eaf1d08..c38c186 100644
+--- a/unbound-1.20.0/smallapp/unbound-control-setup.sh.in
++++ b/unbound-1.20.0/smallapp/unbound-control-setup.sh.in
+@@ -200,7 +200,8 @@ fi
+ # remove unused permissions
+ chmod o-rw \
+       "$SVR_BASE.pem" \
+-      "$SVR_BASE.key" \
++      "$SVR_BASE.key"
++chmod g+r,o-rw \
+       "$CTL_BASE.pem" \
+       "$CTL_BASE.key"
+ 
+-- 
+2.49.0
+
