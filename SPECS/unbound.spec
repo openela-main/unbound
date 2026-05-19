@@ -6,6 +6,7 @@
 %bcond_without doh
 
 %global _hardened_build 1
+%global forgeurl https://github.com/NLnetLabs/%{name}
 
 #%%global extra_version rc1
 
@@ -29,8 +30,8 @@
 
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
-Version: 1.16.2
-Release: 21%{?extra_version:.%{extra_version}}%{?dist}
+Version: 1.24.2
+Release: 2%{?extra_version:.%{extra_version}}%{?dist}
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
@@ -52,38 +53,31 @@ Source16: unbound-munin.README
 Source17: unbound-anchor.service
 Source18: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz.asc
 Source19: http://keys.gnupg.net/pks/lookup?op=get&search=0x9F6F1C2D7E045F8D#/wouter.nlnetlabs.nl.key
+Source20: https://nlnetlabs.nl/downloads/keys/Yorgos.asc
 Source21: remote-control.conf
 Source22: unbound-local-root.conf
 Source23: module-setup.sh
 Source24: unbound-initrd.conf
 Source25: unbound.sysusers
 Source26: unbound-as112-networks.conf
+Source27: tmpfiles-unbound-libs.conf
 
-# https://github.com/NLnetLabs/unbound/commit/137719522a8ea5b380fbb6206d2466f402f5b554
-Patch1: unbound-1.16-CVE-2022-3204.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2023-50387_CVE-2023-50868.diff
-Patch4: unbound-1.16-CVE-2023-50387-CVE-2023-50868.patch
-# https://github.com/NLnetLabs/unbound/commit/6d1e61173
-Patch5: unbound-1.16-control-t-flag.patch
-# https://github.com/NLnetLabs/unbound/commit/b7c61d7cc256d6a174e6179622c7fa968272c259
-Patch6: unbound-1.21-CVE-2024-8508.patch
-# https://github.com/NLnetLabs/unbound/commit/b48958c983f60af40358cca168c403e57bde30d2
-Patch7: unbound-1.16-control-key-perms.patch
-# The patch for CVE-2025-5994 requires certain changes fixing bugs in subnet module
-# that is why we have to backport these commits. They have their respective tests
-# backported with them.
-# https://github.com/NLnetLabs/unbound/commit/0f08cc6d5577ad4747749c55229e16df8711ee32
-# https://github.com/NLnetLabs/unbound/commit/6d0812b56731af130e8bc7e1572388934beb9b3b
-# https://github.com/NLnetLabs/unbound/commit/be626f7c5330dc414a582a04b537ea79d5c452fb
-# https://github.com/NLnetLabs/unbound/commit/5bf82f246481098a6473f296b21fc1229d276c0f
-# https://github.com/NLnetLabs/unbound/commit/a1150078f29e14b36c8e4d9d05a263a5e6abbc5b
-Patch8: unbound-1.23.1-CVE-2025-5994.patch
+# Downstream configuration changes
+Patch1:   unbound-fedora-config.patch
+# https://github.com/NLnetLabs/unbound/pull/1349
+Patch2:   %{forgeurl}/pull/1349.patch#/unbound-1.25-tls-crypto-policy.patch
+# https://github.com/NLnetLabs/unbound/pull/1401
+Patch3:   %{forgeurl}/pull/1401.patch#/unbound-1.25-tls-crypto-policy-default.patch
 
-BuildRequires: gcc, make
-BuildRequires: flex, openssl-devel
-BuildRequires: libevent-devel expat-devel
+BuildRequires: gcc
+BuildRequires: make
+BuildRequires: flex
+BuildRequires: byacc
+BuildRequires: openssl-devel
+BuildRequires: libevent-devel
+BuildRequires: expat-devel
 BuildRequires: pkgconfig
-%if 0%{?fedora}
+%if 0%{?fedora} || 0%{?rhel} >= 10
 BuildRequires: gnupg2
 %endif
 %if 0%{with_python2}
@@ -191,8 +185,8 @@ Unbound dracut module allowing use of Unbound for name resolution
 in initramfs.
 
 %prep
-%if 0%{?fedora}
-%gpgverify -k 19 -s 18 -d 0
+%if 0%{?fedora} || 0%{?rhel} >= 10
+%{gpgverify} --keyring='%{SOURCE20}' --signature='%{SOURCE18}' --data='%{SOURCE0}'
 %endif
 %global pkgname %{name}-%{version}%{?extra_version}
 
@@ -212,7 +206,7 @@ pushd %{pkgname}
 %autopatch -p2
 
 # only for snapshots
-autoreconf -iv
+autoreconf -fiv
 
 # copy common doc files - after here, since it may be patched
 cp -pr doc pythonmod libunbound ../
@@ -236,7 +230,8 @@ cp -a %{dir_primary} %{dir_secondary}
             --with-pidfile=%{_rundir}/%{name}/%{name}.pid \\\
             --enable-sha2 --disable-gost --enable-ecdsa \\\
             --with-rootkey-file=%{_sharedstatedir}/unbound/root.key \\\
-            --enable-linux-ip-local-port-range --disable-sha1
+            --enable-linux-ip-local-port-range --disable-sha1 \\\
+            --enable-system-tls
 
 pushd %{dir_primary}
 
@@ -314,18 +309,19 @@ done
 
 pushd %{dir_primary}
 # install streamtcp man page
-install -m 0644 testcode/streamtcp.1 %{buildroot}/%{_mandir}/man1/unbound-streamtcp.1
-install -D -m 0644 contrib/libunbound.pc %{buildroot}/%{_libdir}/pkgconfig/libunbound.pc
+install -p -m 0644 testcode/streamtcp.1 %{buildroot}/%{_mandir}/man1/unbound-streamtcp.1
+install -p -D -m 0644 contrib/libunbound.pc %{buildroot}/%{_libdir}/pkgconfig/libunbound.pc
 popd
 
 # Install tmpfiles.d config
 install -d -m 0755 %{buildroot}%{_tmpfilesdir} %{buildroot}%{_sharedstatedir}/unbound
-install -m 0644 %{SOURCE8} %{buildroot}%{_tmpfilesdir}/unbound.conf
+install -p -m 0644 %{SOURCE8} %{buildroot}%{_tmpfilesdir}/unbound.conf
+install -p -m 0644 %{SOURCE27} %{buildroot}%{_tmpfilesdir}/unbound-libs.conf
 
 # install root - we keep a copy of the root key in old location,
 # in case user has changed the configuration and we wouldn't update it there
-install -m 0644 %{SOURCE5} %{buildroot}%{_sysconfdir}/unbound/
-install -m 0644 %{SOURCE13} %{buildroot}%{_sharedstatedir}/unbound/root.key
+install -p -m 0644 %{SOURCE5} %{buildroot}%{_sysconfdir}/unbound/
+install -p -m 0644 %{SOURCE13} %{buildroot}%{_sharedstatedir}/unbound/root.key
 
 # local root zone fetch to separated configuration file
 install -p -m 0644 %{SOURCE22} %{buildroot}%{_sysconfdir}/unbound/
@@ -492,6 +488,7 @@ popd
 %license doc/LICENSE
 %attr(0755,root,root) %dir %{_sysconfdir}/%{name}
 %{_sysusersdir}/%{name}.conf
+%attr(0644,root,root) %{_tmpfilesdir}/unbound-libs.conf
 %{_sbindir}/unbound-anchor
 %{_libdir}/libunbound.so.*
 %{_mandir}/man8/unbound-anchor*
@@ -501,7 +498,7 @@ popd
 %{_unitdir}/unbound-anchor.timer
 %{_unitdir}/unbound-anchor.service
 %dir %attr(0755,unbound,unbound) %{_sharedstatedir}/%{name}
-%attr(0644,unbound,unbound) %config %{_sharedstatedir}/%{name}/root.key
+%attr(0644,unbound,unbound) %verify(not md5 mtime size) %config %{_sharedstatedir}/%{name}/root.key
 # just left for backwards compat with user changed unbound.conf files - format is different!
 %attr(0644,root,root) %config %{_sysconfdir}/%{name}/root.key
 
@@ -509,6 +506,20 @@ popd
 %{_prefix}/lib/dracut/modules.d/99unbound
 
 %changelog
+* Mon Feb 09 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-2
+- Switch TLS configuration to follow TLS sockets by crypto-policy again
+  (RHEL-147860)
+- Change the default of tls-use-system-policy-versions at build-time
+
+* Tue Nov 11 2025 Petr Menšík <pemensik@redhat.com> - 1.16.2-24
+- Add new root key 38696 (RHEL-77716)
+
+* Tue Nov 11 2025 Petr Menšík <pemensik@redhat.com> - 1.16.2-23
+- Do not verify root.key in libs (RHEL-64339)
+
+* Tue Nov 11 2025 Petr Menšík <pemensik@redhat.com> - 1.16.2-22
+- Create root key if missing automatically (RHEL-127540)
+
 * Mon Jul 28 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-21
 - Fix RebirthDay Attack (CVE-2025-5994)
 - Resolves: RHEL-104129
