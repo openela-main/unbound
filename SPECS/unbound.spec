@@ -34,7 +34,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 5.9%{?extra_version:.%{extra_version}}%{?dist}
+Release: 5.10%{?extra_version:.%{extra_version}}%{?dist}
 License: BSD
 Url: https://www.unbound.net/
 Source: https://www.unbound.net/downloads/%{name}-%{version}%{?extra_version}.tar.gz
@@ -76,6 +76,8 @@ Patch5: unbound-1.21-CVE-2024-8508.patch
 # https://github.com/NLnetLabs/unbound/commit/5bf82f246481098a6473f296b21fc1229d276c0f
 # https://github.com/NLnetLabs/unbound/commit/a1150078f29e14b36c8e4d9d05a263a5e6abbc5b
 Patch6: unbound-1.23.1-CVE-2025-5994.patch
+# https://github.com/NLnetLabs/unbound/commit/f094f4ea3c943c5b5b2b6fa8bee0e7a8f3cfdc51
+Patch7: unbound-1.20-unbound-anchor-key-38696.patch
 
 BuildRequires: gdb
 BuildRequires: gcc, make
@@ -181,6 +183,7 @@ pushd %{pkgname}
 %patch4 -p2 -b .CVE-2023-50387-CVE-2023-50868
 %patch5 -p2 -b .CVE-2024-8508
 %patch6 -p2 -b .CVE-2025-5994
+%patch7 -p2 -b .dnssec-ta-2024
 
 
 # copy common doc files - after here, since it may be patched
@@ -448,6 +451,10 @@ popd
 %verify(not md5 size mtime) %{_sharedstatedir}/%{name}/root.key
 
 %changelog
+* Tue Nov 11 2025 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.10
+- Add new root key 38696 (RHEL-131172)
+- Update unbound-anchor built-in dnssec key
+
 * Thu Jul 24 2025 Tomas Korbar <tkorbar@redhat.com> - 1.16.2-5.9
 - Fix RebirthDay Attack (CVE-2025-5994)
 - Resolves: RHEL-104123
