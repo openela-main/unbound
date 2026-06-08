@@ -34,7 +34,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 5.10%{?extra_version:.%{extra_version}}%{?dist}
+Release: 5.11%{?extra_version:.%{extra_version}}%{?dist}
 License: BSD
 Url: https://www.unbound.net/
 Source: https://www.unbound.net/downloads/%{name}-%{version}%{?extra_version}.tar.gz
@@ -78,6 +78,11 @@ Patch5: unbound-1.21-CVE-2024-8508.patch
 Patch6: unbound-1.23.1-CVE-2025-5994.patch
 # https://github.com/NLnetLabs/unbound/commit/f094f4ea3c943c5b5b2b6fa8bee0e7a8f3cfdc51
 Patch7: unbound-1.20-unbound-anchor-key-38696.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42944.diff
+Patch8: unbound-1.25.1-CVE-2026-42944.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42959.diff
+Patch9: unbound-1.25.1-CVE-2026-42959.patch
+
 
 BuildRequires: gdb
 BuildRequires: gcc, make
@@ -184,7 +189,8 @@ pushd %{pkgname}
 %patch5 -p2 -b .CVE-2024-8508
 %patch6 -p2 -b .CVE-2025-5994
 %patch7 -p2 -b .dnssec-ta-2024
-
+%patch8 -p2 -b .CVE-2026-42944
+%patch9 -p2 -b .CVE-2026-42959
 
 # copy common doc files - after here, since it may be patched
 cp -pr doc pythonmod libunbound ../
@@ -451,6 +457,10 @@ popd
 %verify(not md5 size mtime) %{_sharedstatedir}/%{name}/root.key
 
 %changelog
+* Mon May 25 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.16.2-5.11
+- Fix CVE-2026-42944 (RHEL‑177909)
+- Fix CVE-2026-42959 (RHEL-177809)
+
 * Tue Nov 11 2025 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.10
 - Add new root key 38696 (RHEL-131172)
 - Update unbound-anchor built-in dnssec key
