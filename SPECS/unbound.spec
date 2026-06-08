@@ -31,7 +31,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.24.2
-Release: 2%{?extra_version:.%{extra_version}}%{?dist}
+Release: 3%{?extra_version:.%{extra_version}}%{?dist}.1
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
@@ -68,6 +68,13 @@ Patch1:   unbound-fedora-config.patch
 Patch2:   %{forgeurl}/pull/1349.patch#/unbound-1.25-tls-crypto-policy.patch
 # https://github.com/NLnetLabs/unbound/pull/1401
 Patch3:   %{forgeurl}/pull/1401.patch#/unbound-1.25-tls-crypto-policy-default.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-33278_with.diff
+Patch4:   unbound-1.25.1-CVE-2026-33278.patch
+# https://github.com/NLnetLabs/unbound/commit/44659cb3bf4601d2daa19a0d51ac5af54bc698bc
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42944_with.diff
+Patch5:   unbound-1.25.1-CVE-2026-42944.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42959.diff
+Patch6:   unbound-1.25.1-CVE-2026-42959.patch
 
 BuildRequires: gcc
 BuildRequires: make
@@ -321,6 +328,8 @@ install -p -m 0644 %{SOURCE27} %{buildroot}%{_tmpfilesdir}/unbound-libs.conf
 # install root - we keep a copy of the root key in old location,
 # in case user has changed the configuration and we wouldn't update it there
 install -p -m 0644 %{SOURCE5} %{buildroot}%{_sysconfdir}/unbound/
+# Creates duplicate copy of the same file to improve backward compatibility
+install -p -m 0644 %{SOURCE13} %{buildroot}%{_sysconfdir}/unbound/dnssec-root.key
 install -p -m 0644 %{SOURCE13} %{buildroot}%{_sharedstatedir}/unbound/root.key
 
 # local root zone fetch to separated configuration file
@@ -499,6 +508,7 @@ popd
 %{_unitdir}/unbound-anchor.service
 %dir %attr(0755,unbound,unbound) %{_sharedstatedir}/%{name}
 %attr(0644,unbound,unbound) %verify(not md5 mtime size) %config %{_sharedstatedir}/%{name}/root.key
+%attr(0644,root,root) %config %{_sysconfdir}/%{name}/dnssec-root.key
 # just left for backwards compat with user changed unbound.conf files - format is different!
 %attr(0644,root,root) %config %{_sysconfdir}/%{name}/root.key
 
@@ -506,6 +516,14 @@ popd
 %{_prefix}/lib/dracut/modules.d/99unbound
 
 %changelog
+* Mon May 25 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-3.1
+- Fix CVE-2026-33278 (RHEL‑177822)
+  Fix CVE-2026-42944 (RHEL-177936)
+  Fix CVE-2026-42959 (RHEL-177797)
+
+* Wed Feb 25 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-3
+- Install correct trust anchor source in Image Mode (RHEL-127540)
+
 * Mon Feb 09 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-2
 - Switch TLS configuration to follow TLS sockets by crypto-policy again
   (RHEL-147860)
