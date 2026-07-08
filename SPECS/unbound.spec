@@ -31,7 +31,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.24.2
-Release: 3%{?extra_version:.%{extra_version}}%{?dist}.1
+Release: 3%{?extra_version:.%{extra_version}}%{?dist}.2
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
@@ -75,6 +75,16 @@ Patch4:   unbound-1.25.1-CVE-2026-33278.patch
 Patch5:   unbound-1.25.1-CVE-2026-42944.patch
 # https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42959.diff
 Patch6:   unbound-1.25.1-CVE-2026-42959.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-40622.diff
+Patch7:   unbound-1.25.1-CVE-2026-40622.patch
+# https://github.com/NLnetLabs/unbound/commit/b5f21f41658f65d6143df6a3208e8ccf1a01604d
+Patch8:   unbound-1.25.1-CVE-2026-40622-test.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-44390.diff
+Patch9:   unbound-1.25.1-CVE-2026-44390.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-41292.diff
+Patch10:  unbound-1.25.1-CVE-2026-41292.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42534.diff
+Patch11:  unbound-1.25.1-CVE-2026-42534.patch
 
 BuildRequires: gcc
 BuildRequires: make
@@ -516,8 +526,14 @@ popd
 %{_prefix}/lib/dracut/modules.d/99unbound
 
 %changelog
+* Mon Jun 22 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-3.2
+- Fix CVE-2026-40622 (RHEL-184840)
+  Fix CVE-2026-44390 (RHEL-186688)
+  Fix CVE-2026-41292 (RHEL-187352)
+  Fix CVE-2026-42534 (RHEL-187095)
+
 * Mon May 25 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-3.1
-- Fix CVE-2026-33278 (RHEL‑177822)
+- Fix CVE-2026-33278 (RHEL-177822)
   Fix CVE-2026-42944 (RHEL-177936)
   Fix CVE-2026-42959 (RHEL-177797)
 
