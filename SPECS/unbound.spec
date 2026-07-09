@@ -34,7 +34,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 5.11%{?extra_version:.%{extra_version}}%{?dist}
+Release: 5.12%{?extra_version:.%{extra_version}}%{?dist}
 License: BSD
 Url: https://www.unbound.net/
 Source: https://www.unbound.net/downloads/%{name}-%{version}%{?extra_version}.tar.gz
@@ -82,6 +82,16 @@ Patch7: unbound-1.20-unbound-anchor-key-38696.patch
 Patch8: unbound-1.25.1-CVE-2026-42944.patch
 # https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42959.diff
 Patch9: unbound-1.25.1-CVE-2026-42959.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-40622.diff
+Patch10: unbound-1.25.1-CVE-2026-40622.patch
+# https://github.com/NLnetLabs/unbound/commit/b5f21f41658f65d6143df6a3208e8ccf1a01604d
+Patch11: unbound-1.25.1-CVE-2026-40622-test.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-44390.diff
+Patch12: unbound-1.25.1-CVE-2026-44390.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-41292.diff
+Patch13: unbound-1.25.1-CVE-2026-41292.patch
+# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42534.diff
+Patch14: unbound-1.25.1-CVE-2026-42534.patch
 
 
 BuildRequires: gdb
@@ -191,6 +201,11 @@ pushd %{pkgname}
 %patch7 -p2 -b .dnssec-ta-2024
 %patch8 -p2 -b .CVE-2026-42944
 %patch9 -p2 -b .CVE-2026-42959
+%patch10 -p2 -b .CVE-2026-40622
+%patch11 -p2 -b .CVE-2026-40622-test
+%patch12 -p2 -b .CVE-2026-44390
+%patch13 -p2 -b .CVE-2026-41292
+%patch14 -p2 -b .CVE-2026-42534
 
 # copy common doc files - after here, since it may be patched
 cp -pr doc pythonmod libunbound ../
@@ -457,6 +472,12 @@ popd
 %verify(not md5 size mtime) %{_sharedstatedir}/%{name}/root.key
 
 %changelog
+* Tue Jun 23 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.16.2-5.12
+- Fix CVE-2026-40622 (RHEL-184832)
+- Fix CVE-2026-44390 (RHEL-186680)
+- Fix CVE-2026-41292 (RHEL-187346)
+- Fix CVE-2026-42534 (RHEL-187081)
+
 * Mon May 25 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.16.2-5.11
 - Fix CVE-2026-42944 (RHEL‑177909)
 - Fix CVE-2026-42959 (RHEL-177809)
