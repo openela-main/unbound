@@ -34,7 +34,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 5.12%{?extra_version:.%{extra_version}}%{?dist}
+Release: 5.14%{?extra_version:.%{extra_version}}%{?dist}
 License: BSD
 Url: https://www.unbound.net/
 Source: https://www.unbound.net/downloads/%{name}-%{version}%{?extra_version}.tar.gz
@@ -92,6 +92,10 @@ Patch12: unbound-1.25.1-CVE-2026-44390.patch
 Patch13: unbound-1.25.1-CVE-2026-41292.patch
 # https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42534.diff
 Patch14: unbound-1.25.1-CVE-2026-42534.patch
+# https://github.com/NLnetLabs/unbound/commit/f7637a4f1811f4a9331707d8a95cf0af65a97c0f
+Patch15: unbound-1.25.2-CVE-2026-44690.patch
+# https://github.com/NLnetLabs/unbound/commit/3d5e6c06923eff9eac2f5e31a69c43a15ca9d3c2
+Patch16: unbound-1.25.2-CVE-2026-44690-test.patch
 
 
 BuildRequires: gdb
@@ -206,6 +210,8 @@ pushd %{pkgname}
 %patch12 -p2 -b .CVE-2026-44390
 %patch13 -p2 -b .CVE-2026-41292
 %patch14 -p2 -b .CVE-2026-42534
+%patch15 -p1 -b .CVE-2026-44690
+%patch16 -p1 -b .CVE-2026-44690-test
 
 # copy common doc files - after here, since it may be patched
 cp -pr doc pythonmod libunbound ../
@@ -472,6 +478,12 @@ popd
 %verify(not md5 size mtime) %{_sharedstatedir}/%{name}/root.key
 
 %changelog
+* Wed Aug 05 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.16.2-5.14
+- Add unit test for CVE-2026-44690 from upstream.
+
+* Tue Jul 28 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 1.16.2-5.13
+- Fix CVE-2026-44690 (RHEL-212801)
+
 * Tue Jun 23 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.16.2-5.12
 - Fix CVE-2026-40622 (RHEL-184832)
 - Fix CVE-2026-44390 (RHEL-186680)
