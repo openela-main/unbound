@@ -31,7 +31,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.24.2
-Release: 3%{?extra_version:.%{extra_version}}%{?dist}.4
+Release: 3%{?extra_version:.%{extra_version}}%{?dist}.6
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
@@ -93,6 +93,10 @@ Patch13:  unbound-1.25.2-CVE-2026-44690-test.patch
 Patch14:  unbound-1.25.2-CVE-2026-55973.patch
 # https://github.com/NLnetLabs/unbound/commit/b08723ef9736cd1246ef285360865f00cfa7e2ad
 Patch15:  unbound-1.25.2-CVE-2026-55973-test.patch
+# https://github.com/NLnetLabs/unbound/commit/804cff4c152a121961b04605f75132370fc80df4
+Patch16:  unbound-1.25.2-CVE-2026-50252.patch
+# https://github.com/NLnetLabs/unbound/commit/e597711824e3050fe789f1388766ec5e662684d2
+Patch18: unbound-1.26.0-CVE-2026-50252-fix1.patch
 
 BuildRequires: gcc
 BuildRequires: make
@@ -534,6 +538,12 @@ popd
 %{_prefix}/lib/dracut/modules.d/99unbound
 
 %changelog
+* Wed Aug 19 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-3.6
+- Backport additional fix from 1.26.0 (CVE-2026-50252)
+
+* Wed Aug 19 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 1.24.2-3.5
+- Fix CVE-2026-50252 (RHEL-243479)
+
 * Tue Jul 28 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 1.24.2-3.4
 - Fix CVE-2026-55973 (RHEL-212809)
 
