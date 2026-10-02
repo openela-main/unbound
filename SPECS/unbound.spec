@@ -34,7 +34,7 @@
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
 Version: 1.16.2
-Release: 5.14%{?extra_version:.%{extra_version}}%{?dist}
+Release: 5.14%{?extra_version:.%{extra_version}}%{?dist}.4
 License: BSD
 Url: https://www.unbound.net/
 Source: https://www.unbound.net/downloads/%{name}-%{version}%{?extra_version}.tar.gz
@@ -96,6 +96,22 @@ Patch14: unbound-1.25.1-CVE-2026-42534.patch
 Patch15: unbound-1.25.2-CVE-2026-44690.patch
 # https://github.com/NLnetLabs/unbound/commit/3d5e6c06923eff9eac2f5e31a69c43a15ca9d3c2
 Patch16: unbound-1.25.2-CVE-2026-44690-test.patch
+# https://github.com/NLnetLabs/unbound/commit/804cff4c152a121961b04605f75132370fc80df4
+Patch17: unbound-1.25.2-CVE-2026-50252.patch
+# https://github.com/NLnetLabs/unbound/commit/e597711824e3050fe789f1388766ec5e662684d2
+Patch18: unbound-1.26.0-CVE-2026-50252-fix1.patch
+# downstream only, backport fix
+Patch19: unbound-1.25.2-CVE-2026-44690-fix1.patch
+# https://github.com/NLnetLabs/unbound/commit/8c2e0fd6cc5b6eaa618ac72227808824b4edee7c
+Patch20: unbound-1.26.1-CVE-2026-81642.patch
+# https://github.com/NLnetLabs/unbound/commit/3d65973d38cd7e4dcdc9d5764ef1ea40fd849d10
+Patch21: unbound-1.26.1-CVE-2026-81634.patch
+# https://github.com/NLnetLabs/unbound/commit/3a6ba0da81536020dc2244f6da6d6a9d60d4e063
+Patch22: unbound-1.26.1-CVE-2026-81642-test.patch
+# https://github.com/NLnetLabs/unbound/commit/0d4a6a63dd71050d216a467b488e28176f2599df
+Patch23: unbound-1.26.1-CVE-2026-82717.patch
+# https://github.com/NLnetLabs/unbound/commit/5d89e0c2a7577e78f8a8433b940b20819efc262e
+Patch24: unbound-1.26.1-CVE-2026-82717-test.patch
 
 
 BuildRequires: gdb
@@ -212,6 +228,14 @@ pushd %{pkgname}
 %patch14 -p2 -b .CVE-2026-42534
 %patch15 -p1 -b .CVE-2026-44690
 %patch16 -p1 -b .CVE-2026-44690-test
+%patch17 -p1 -b .CVE-2026-50252
+%patch18 -p2 -b .CVE-2026-50252-fix1
+%patch19 -p2 -b .CVE-2026-44690-fix1
+%patch20 -p2 -b .CVE-2026-81642
+%patch21 -p2 -b .CVE-2026-81634
+%patch22 -p2 -b .CVE-2026-81642-test
+%patch23 -p2 -b .CVE-2026-82717
+%patch24 -p2 -b .CVE-2026-82717-test
 
 # copy common doc files - after here, since it may be patched
 cp -pr doc pythonmod libunbound ../
@@ -478,6 +502,21 @@ popd
 %verify(not md5 size mtime) %{_sharedstatedir}/%{name}/root.key
 
 %changelog
+* Mon Sep 21 2026 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.14.4
+- Prevent heap corruption during CNAME synthesis (CVE-2026-82717)
+
+* Fri Sep 18 2026 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.14.3
+- Prevent heap buffer overflow when digesting DNSKEY (CVE-2026-81642)
+- Prevent heap buffer overflow during DNSSEC canonicalization (CVE-2026-81634)
+- Add unit tests for vulnerabilities too
+
+* Wed Aug 19 2026 Petr Menšík <pemensik@redhat.com> - 1.16.2-5.14.2
+- Backport additional fix from 1.26.0 (CVE-2026-50252)
+- Correct new warning in previous change (CVE-2026-44690)
+
+* Wed Aug 19 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 1.16.2-5.14.1
+- Fix CVE-2026-50252 (cache poisoning via source port prediction)
+
 * Wed Aug 05 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.16.2-5.14
 - Add unit test for CVE-2026-44690 from upstream.
 
