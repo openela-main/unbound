@@ -30,8 +30,8 @@
 
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
-Version: 1.24.2
-Release: 3%{?extra_version:.%{extra_version}}%{?dist}.8
+Version: 1.26.1
+Release: 1%{?extra_version:.%{extra_version}}%{?dist}
 License: BSD
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
@@ -63,50 +63,13 @@ Source26: unbound-as112-networks.conf
 Source27: tmpfiles-unbound-libs.conf
 
 # Downstream configuration changes
-Patch1:   unbound-fedora-config.patch
-# https://github.com/NLnetLabs/unbound/pull/1349
-Patch2:   %{forgeurl}/pull/1349.patch#/unbound-1.25-tls-crypto-policy.patch
-# https://github.com/NLnetLabs/unbound/pull/1401
-Patch3:   %{forgeurl}/pull/1401.patch#/unbound-1.25-tls-crypto-policy-default.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-33278_with.diff
-Patch4:   unbound-1.25.1-CVE-2026-33278.patch
-# https://github.com/NLnetLabs/unbound/commit/44659cb3bf4601d2daa19a0d51ac5af54bc698bc
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42944_with.diff
-Patch5:   unbound-1.25.1-CVE-2026-42944.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42959.diff
-Patch6:   unbound-1.25.1-CVE-2026-42959.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-40622.diff
-Patch7:   unbound-1.25.1-CVE-2026-40622.patch
-# https://github.com/NLnetLabs/unbound/commit/b5f21f41658f65d6143df6a3208e8ccf1a01604d
-Patch8:   unbound-1.25.1-CVE-2026-40622-test.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-44390.diff
-Patch9:   unbound-1.25.1-CVE-2026-44390.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-41292.diff
-Patch10:  unbound-1.25.1-CVE-2026-41292.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42534.diff
-Patch11:  unbound-1.25.1-CVE-2026-42534.patch
-# https://github.com/NLnetLabs/unbound/commit/f7637a4f1811f4a9331707d8a95cf0af65a97c0f
-Patch12:  unbound-1.25.2-CVE-2026-44690.patch
-# https://github.com/NLnetLabs/unbound/commit/3d5e6c06923eff9eac2f5e31a69c43a15ca9d3c2
-Patch13:  unbound-1.25.2-CVE-2026-44690-test.patch
-# https://github.com/NLnetLabs/unbound/commit/96f875552023c0ccf376ebe050519f12f3371dc9
-Patch14:  unbound-1.25.2-CVE-2026-55973.patch
-# https://github.com/NLnetLabs/unbound/commit/b08723ef9736cd1246ef285360865f00cfa7e2ad
-Patch15:  unbound-1.25.2-CVE-2026-55973-test.patch
-# https://github.com/NLnetLabs/unbound/commit/804cff4c152a121961b04605f75132370fc80df4
-Patch16:  unbound-1.25.2-CVE-2026-50252.patch
-# https://github.com/NLnetLabs/unbound/commit/e597711824e3050fe789f1388766ec5e662684d2
-Patch18: unbound-1.26.0-CVE-2026-50252-fix1.patch
-# https://github.com/NLnetLabs/unbound/commit/8c2e0fd6cc5b6eaa618ac72227808824b4edee7c
-Patch19: unbound-1.26.1-CVE-2026-81642.patch
-# https://github.com/NLnetLabs/unbound/commit/3d65973d38cd7e4dcdc9d5764ef1ea40fd849d10
-Patch20: unbound-1.26.1-CVE-2026-81634.patch
-# https://github.com/NLnetLabs/unbound/commit/3a6ba0da81536020dc2244f6da6d6a9d60d4e063
-Patch21: unbound-1.26.1-CVE-2026-81642-test.patch
-# https://github.com/NLnetLabs/unbound/commit/0d4a6a63dd71050d216a467b488e28176f2599df
-Patch22: unbound-1.26.1-CVE-2026-82717.patch
+Patch1: unbound-fedora-config.patch
+# https://github.com/NLnetLabs/unbound/commit/8b33c5d7ffb82d442f3d19021588449cd6b02a17
+# Will likely be included in unbound-1.26.1.
+Patch2: unbound-1.26.0-disabled-ipsecmod-fix.patch
 # https://github.com/NLnetLabs/unbound/commit/5d89e0c2a7577e78f8a8433b940b20819efc262e
-Patch23: unbound-1.26.1-CVE-2026-82717-test.patch
+Patch3: unbound-1.26.1-CVE-2026-82717-test.patch
+
 
 BuildRequires: gcc
 BuildRequires: make
@@ -116,6 +79,7 @@ BuildRequires: openssl-devel
 BuildRequires: libevent-devel
 BuildRequires: expat-devel
 BuildRequires: pkgconfig
+BuildRequires: gzip
 %if 0%{?fedora} || 0%{?rhel} >= 10
 BuildRequires: gnupg2
 %endif
@@ -310,6 +274,7 @@ pushd %{dir_secondary}
 popd
 %endif
 
+gzip --best -k doc/Changelog
 
 %install
 install -p -m 0644 %{SOURCE16} .
@@ -463,6 +428,7 @@ popd
 
 %files
 %doc doc/CREDITS doc/FEATURES
+%doc doc/Changelog.*
 %{_unitdir}/%{name}.service
 %{_unitdir}/%{name}-keygen.service
 %attr(0775,unbound,root) %dir %{_rundir}/%{name}
@@ -548,36 +514,18 @@ popd
 %{_prefix}/lib/dracut/modules.d/99unbound
 
 %changelog
-* Mon Sep 21 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-3.8
-- Prevent heap corruption during CNAME synthesis (CVE-2026-82717)
+* Tue Sep 22 2026 Petr Menšík <pemensik@redhat.com> - 1.26.1-1
+- Update to 1.26.1
+- Fixes CVEs: CVE-2026-82717 CVE-2026-81634 CVE-2026-81642
+  CVE-2026-77955 CVE-2026-78227 CVE-2026-80225 CVE-2026-82720
+  CVE-2026-85501 CVE-2026-77860
 
-* Fri Sep 18 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-3.7
-- Prevent heap buffer overflow when digesting DNSKEY (CVE-2026-81642)
-- Prevent heap buffer overflow during DNSSEC canonicalization (CVE-2026-81634)
-- Add unit tests for vulnerabilities too
+* Thu Aug 06 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.26.0-1
+- Update to 1.26.0
 
-* Wed Aug 19 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-3.6
-- Backport additional fix from 1.26.0 (CVE-2026-50252)
-
-* Wed Aug 19 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 1.24.2-3.5
-- Fix CVE-2026-50252 (RHEL-243479)
-
-* Tue Jul 28 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 1.24.2-3.4
-- Fix CVE-2026-55973 (RHEL-212809)
-
-* Wed Aug 05 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 1.24.2-3.3
-- Fix CVE-2026-44690 (RHEL-212798)
-
-* Mon Jun 22 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-3.2
-- Fix CVE-2026-40622 (RHEL-184840)
-  Fix CVE-2026-44390 (RHEL-186688)
-  Fix CVE-2026-41292 (RHEL-187352)
-  Fix CVE-2026-42534 (RHEL-187095)
-
-* Mon May 25 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-3.1
-- Fix CVE-2026-33278 (RHEL-177822)
-  Fix CVE-2026-42944 (RHEL-177936)
-  Fix CVE-2026-42959 (RHEL-177797)
+* Thu Jul 02 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.25.1-1
+- Update to 1.25.1 (RHEL-187020)
+- Fixes 11 CVEs: 6 Important, 5 Moderate.
 
 * Wed Feb 25 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-3
 - Install correct trust anchor source in Image Mode (RHEL-127540)
