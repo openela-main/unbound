@@ -1,6 +1,11 @@
 ## START: Set by rpmautospec
 ## (rpmautospec version 0.8.4)
-## RPMAUTOSPEC: autochangelog
+## RPMAUTOSPEC: autorelease, autochangelog
+%define autorelease(e:s:pb:n) %{?-p:0.}%{lua:
+    release_number = 2;
+    base_release_number = tonumber(rpm.expand("%{?-b*}%{!?-b:1}"));
+    print(release_number + base_release_number - 1);
+}%{?-e:.%{-e*}}%{?-s:.%{-s*}}%{!?-n:%{?dist}}
 ## END: Set by rpmautospec
 
 %{?!with_python2:     %global with_python2     0}
@@ -36,13 +41,13 @@
 
 Summary: Validating, recursive, and caching DNS(SEC) resolver
 Name: unbound
-Version: 1.24.2
-Release: 7%{?extra_version:-e %{extra_version}}%{?dist}.6
+Version: 1.26.1
+Release: %autorelease %{?extra_version:-e %{extra_version}}
 License: BSD-3-Clause
 Url: https://nlnetlabs.nl/projects/unbound/
 Source: https://nlnetlabs.nl/downloads/%{name}/%{name}-%{version}%{?extra_version}.tar.gz
 Source1: unbound.service
-Source2: https://nlnetlabs.nl/downloads/keys/Yorgos.asc
+Source2: https://nlnetlabs.nl/downloads/keys/releases-g2.asc
 Source3: unbound.munin
 Source4: unbound_munin_
 Source5: root.key
@@ -71,50 +76,13 @@ Source27: unbound-initrd.conf
 Source30: tmpfiles-unbound-libs.conf
 
 # Downstream configuration changes
-Patch1:   unbound-fedora-config.patch
-# https://github.com/NLnetLabs/unbound/pull/1349
-Patch2:   %{forgeurl}/pull/1349.patch#/unbound-1.25-tls-crypto-policy.patch
-# https://github.com/NLnetLabs/unbound/pull/1401
-Patch3:   %{forgeurl}/pull/1401.patch#/unbound-1.25-tls-crypto-policy-default.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-33278_with.diff
-Patch4:   unbound-1.25.1-CVE-2026-33278.patch
-# https://github.com/NLnetLabs/unbound/commit/44659cb3bf4601d2daa19a0d51ac5af54bc698bc
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42944_with.diff
-Patch5:   unbound-1.25.1-CVE-2026-42944.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42959.diff
-Patch6:   unbound-1.25.1-CVE-2026-42959.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-40622.diff
-Patch7:   unbound-1.25.1-CVE-2026-40622.patch
-# https://github.com/NLnetLabs/unbound/commit/b5f21f41658f65d6143df6a3208e8ccf1a01604d
-Patch8:   unbound-1.25.1-CVE-2026-40622-test.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-44390.diff
-Patch9:   unbound-1.25.1-CVE-2026-44390.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-41292.diff
-Patch10:  unbound-1.25.1-CVE-2026-41292.patch
-# https://nlnetlabs.nl/downloads/unbound/patch_CVE-2026-42534.diff
-Patch11:  unbound-1.25.1-CVE-2026-42534.patch
-# https://github.com/NLnetLabs/unbound/commit/f7637a4f1811f4a9331707d8a95cf0af65a97c0f
-Patch12:  unbound-1.25.2-CVE-2026-44690.patch
-# https://github.com/NLnetLabs/unbound/commit/3d5e6c06923eff9eac2f5e31a69c43a15ca9d3c2
-Patch13:  unbound-1.25.2-CVE-2026-44690-test.patch
-# https://github.com/NLnetLabs/unbound/commit/96f875552023c0ccf376ebe050519f12f3371dc9
-Patch14:  unbound-1.25.2-CVE-2026-55973.patch
-# https://github.com/NLnetLabs/unbound/commit/b08723ef9736cd1246ef285360865f00cfa7e2ad
-Patch15:  unbound-1.25.2-CVE-2026-55973-test.patch
-# https://github.com/NLnetLabs/unbound/commit/804cff4c152a121961b04605f75132370fc80df4
-Patch16:  unbound-1.25.2-CVE-2026-50252.patch
-# https://github.com/NLnetLabs/unbound/commit/e597711824e3050fe789f1388766ec5e662684d2
-Patch18: unbound-1.26.0-CVE-2026-50252-fix1.patch
-# https://github.com/NLnetLabs/unbound/commit/8c2e0fd6cc5b6eaa618ac72227808824b4edee7c
-Patch19: unbound-1.26.1-CVE-2026-81642.patch
-# https://github.com/NLnetLabs/unbound/commit/3d65973d38cd7e4dcdc9d5764ef1ea40fd849d10
-Patch20: unbound-1.26.1-CVE-2026-81634.patch
-# https://github.com/NLnetLabs/unbound/commit/3a6ba0da81536020dc2244f6da6d6a9d60d4e063
-Patch21: unbound-1.26.1-CVE-2026-81642-test.patch
-# https://github.com/NLnetLabs/unbound/commit/0d4a6a63dd71050d216a467b488e28176f2599df
-Patch22: unbound-1.26.1-CVE-2026-82717.patch
+Patch1: unbound-fedora-config.patch
+# https://github.com/NLnetLabs/unbound/commit/8b33c5d7ffb82d442f3d19021588449cd6b02a17
+# Will likely be included in unbound-1.26.1.
+Patch2: unbound-1.26.0-disabled-ipsecmod-fix.patch
 # https://github.com/NLnetLabs/unbound/commit/5d89e0c2a7577e78f8a8433b940b20819efc262e
-Patch23: unbound-1.26.1-CVE-2026-82717-test.patch
+Patch3: unbound-1.26.1-CVE-2026-82717-test.patch
+
 
 BuildRequires: gcc
 BuildRequires: make
@@ -124,6 +92,7 @@ BuildRequires: openssl-devel
 BuildRequires: libevent-devel
 BuildRequires: expat-devel
 BuildRequires: pkgconfig
+BuildRequires: gzip
 %if 0%{?fedora} || 0%{?rhel} >= 10
 BuildRequires: gnupg2
 %endif
@@ -357,6 +326,7 @@ pushd %{dir_secondary}
 popd
 %endif
 
+gzip --best -k doc/Changelog
 
 %install
 install -p -m 0644 %{SOURCE16} .
@@ -507,6 +477,7 @@ popd
 
 %files
 %doc doc/CREDITS doc/FEATURES
+%doc doc/Changelog.*
 %{_unitdir}/%{name}.service
 %{_unitdir}/%{name}-keygen.service
 %attr(0775,unbound,root) %dir %{_rundir}/%{name}
@@ -594,55 +565,45 @@ popd
 
 %changelog
 ## START: Generated by rpmautospec
-* Mon Sep 21 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-23
-- Prevent heap corruption during CNAME synthesis (CVE-2026-82717)
+* Tue Sep 22 2026 Petr Menšík <pemensik@redhat.com> - 1.26.1-2
+- Backport additional unit test for CVEs after the release
 
-* Fri Sep 18 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-22
-- Prevent heap buffer overflow during DNSSEC canonicalization
-  (CVE-2026-81634)
+* Tue Sep 22 2026 Petr Menšík <pemensik@redhat.com> - 1.26.1-1
+- Update to 1.26.1
+- Fix CVE-2026-81642, Heap buffer overflow and possible Remote Code
+  Execution when digesting DNSKEY. Thanks to Yuqi Qiu and Xiang Li from
+  Nankai University, AOSP Lab for the report.
+- Fix CVE-2026-81634, Possible heap buffer overflow during DNSSEC
+  canonicalization. Thanks to Vlatko Kosturjak with Marlink Cyber for the
+  report.
+- Fix CVE-2026-82717, CNAME synthesis could lead to heap corruption. Thanks
+  to Ben Morris from Anthropic for the report.
+- Fix CVE-2026-77955, Possible ZONEMD verification bypass window. Thanks to
+  Yuqi Qiu and Xiang Li from Nankai University, AOSP Lab, In addition,
+  thanks to Qifan Zhang from Palo Alto Networks for also reporting this
+  issue.
+- Fix CVE-2026-78227, Use-after-free in DoQ stream output buffer on reset
+  re-transmission. Thanks to Yuqi Qiu and Xiang Li from Nankai University,
+  AOSP Lab for the report.
+- Fix CVE-2026-80225, Possible degradation of service from continuous
+  queries on the same TCP/DoT connection. Thanks to Qifan Zhang from Palo
+  Alto Networks for the report.
+- Fix CVE-2026-82720, Use-after-free in DoH stream cleanup code path.
+  Thanks to Yuqi Qiu and Xiang Li from Nankai University, AOSP Lab for the
+  report.
+- Fix CVE-2026-85501, Retrap: Novel Vulnerabilities to launch Algorithmic
+  Complexity Attacks on DNSSEC. Thanks to Zuyao Xu and Xiang Li from Nankai
+  University, AOSP Lab for report. In addition, thanks to Qifan Zhang from
+  Palo Alto Networks for a complimentary report.
+- Fix CVE-2026-77860, 'serve-expired' can bypass Unbound 'wait-limit'.
+  Thanks to Xuanchao Xie, Lutong Chen, and Kaiping Xue from the University
+  of Science and Technology of China (USTC) for the report.
 
-* Fri Sep 18 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-21
-- Prevent heap buffer overflow when digesting DNSKEY (CVE-2026-81642)
-- Add unit test for the vulnerability too
+* Thu Aug 06 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.26.0-1
+- Update to 1.26.0
 
-* Fri Aug 21 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-20
-- Backport additional fix of locks during initialization
-
-* Wed Aug 19 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 1.24.2-19
-- Fix CVE-2026-50252: prevent cache poisoning via shared ports
-
-* Wed Aug 05 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-18
-- Add unit tests for CVE-2026-{44690,55973}
-
-* Wed Aug 05 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 1.24.2-17
-- Fix CVE-2026-55973: dns-error-reporting stack buffer overflow
-
-* Wed Aug 05 2026 RHEL Packaging Agent <redhat-ymir-agent@redhat.com> - 1.24.2-16
-- Fix CVE-2026-44690 - Cross-zone wildcard cache poisoning
-
-* Wed Jun 24 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-15
-- Fix CVE-2026-42534: Jostle logic bypass degrades resolution performance
-
-* Wed Jun 24 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-14
-- Fix CVE-2026-41292: DoS via excessive EDNS options
-
-* Wed Jun 24 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-13
-- Add upstream unit test for CVE-2026-40622
-
-* Tue Jun 23 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-12
-- Fix CVE-2026-44390: DoS with large RRsets
-
-* Mon Jun 22 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-11
-- Fix CVE-2026-40622: cache manipulation via 'ghost domain names' attack
-
-* Mon May 25 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-10
-- Fix CVE-2026-42959
-
-* Mon May 25 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-9
-- Fix CVE-2026-42944
-
-* Mon May 25 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.24.2-8
-- Fix CVE-2026-33278
+* Fri Jul 03 2026 Fedor Vorobev <fvorobev@redhat.com> - 1.25.1-1
+- Update to 1.25.1
 
 * Fri Feb 13 2026 Petr Menšík <pemensik@redhat.com> - 1.24.2-7
 - Recreate configure unconditionally
